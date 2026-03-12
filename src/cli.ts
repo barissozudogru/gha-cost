@@ -1,0 +1,281 @@
+#!/usr/bin/env node
+
+import { readdirSync } from "fs";
+import { resolve, join } from "path";
+import { estimateWorkflow, formatDuration } from "./index.js";
+import type { WorkflowEstimate, JobEstimate } from "./types.js";
+
+const RESET = "\x1b[0m";
+const BOLD = "\x1b[1m";
+const DIM = "\x1b[2m";
+const GREEN = "\x1b[32m";
+const YELLOW = "\x1b[33m";
+const CYAN = "\x1b[36m";
+const RED = "\x1b[31m";
+const WHITE = "\x1b[37m";
+
+function colorize(text: string, color: string): string {
+  if (!process.stdout.isTTY) return text;
+  return `${color}${text}${RESET}`;
+}
+
+function bold(text: string): string {
+  return colorize(text, BOLD);
+}
+
+function dim(text: string): string {
+  return colorize(text, DIM);
+}
+
+function formatCost(usd: number): string {
+  if (usd < 0.001) return "$0.00";
+  if (usd < 0.01) return `$${usd.toFixed(4)}`;
+  if (usd < 1) return `$${usd.toFixed(3)}`;
+  return `$${usd.toFixed(2)}`;
+}
+
+function runnerColor(runner: string): string {
+  switch (runner) {
+    case "ubuntu":
+      return GREEN;
+    case "macos":
+      return YELLOW;
+    case "windows":
+      return CYAN;
+    default:
+      return WHITE;
+  }
+}
+
+function printJobBreakdown(job: JobEstimate): void {
+  const runnerTag = colorize(
+    `[${job.runnerLabel}]`,
+    runnerColor(job.runner)
+  );
+
+  const matrixTag =
+    job.matrixCombinations > 1
+      ? dim(` x${job.matrixCombinations} matrix`)
+      : "";
+
+  console.log(
+    `  ${bold(job.name)} ${runnerTag}${matrixTag}`
+  );
+
+  for (const step of job.steps) {
+    const stepLabel = step.uses
+      ? dim(step.uses.split("@")[0] ?? step.uses)
+      : dim(step.run ? step.run.slice(0, 50).replace(/\n/g, " ") : step.name);
+    const duration = dim(formatDuration(step.estimatedSeconds));
+    console.log(`    ${dim("-")} ${step.name}  ${stepLabel}  ${duration}`);
+  }
+
+  const perMatrix = formatDuration(job.estimatedSecondsPerMatrix);
+  const total = formatDuration(job.estimatedTotalSeconds);
+  const cost = colorize(formatCost(job.estimatedCostUsd), GREEN);
+
+  if (job.matrixCombinations > 1) {
+    console.log(
+      `    ${dim("time/matrix:")} ${perMatrix}  ${dim("total:")} ${total}  ${dim("cost:")} ${cost}`
+    );
+  } else {
+    console.log(`    ${dim("time:")} ${total}  ${dim("cost:")} ${cost}`);
+  }
+
+  console.log();
+}
+
+function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): void {
+  const separator = colorize("─".repeat(60), DIM);
+
+  console.log();
+  console.log(separator);
+  console.log(
+    `${bold("Workflow:")} ${colorize(estimate.workflowName, CYAN)}  ${dim(`(${estimate.file})`)}`
+  );
+  console.log(separator);
+  console.log();
+
+  for (const job of estimate.jobs) {
+    printJobBreakdown(job);
+  }
+
+  console.log(separator);
+  console.log(`${bold("Summary")}`);
+  console.log(
+    `  Total estimated time:  ${bold(formatDuration(estimate.totalEstimatedSeconds))}`
+  );
+  console.log(
+    `  Cost per run:          ${colorize(formatCost(estimate.totalEstimatedCostPerRun), GREEN)}`
+  );
+  console.log(
+    `  Cost per day           ${colorize(formatCost(estimate.totalEstimatedCostPerDay), YELLOW)}  ${dim(`(${pushesPerDay} pushes/day)`)}`
+  );
+  console.log(
+    `  Cost per month:        ${colorize(formatCost(estimate.totalEstimatedCostPerMonth), RED)}  ${dim("(30 days)")}`
+  );
+  console.log();
+
+  if (estimate.hints.length > 0) {
+    console.log(`${bold("Optimization hints:")}`);
+    for (const hint of estimate.hints) {
+      console.log(`  ${colorize("!", YELLOW)}  ${hint}`);
+    }
+    console.log();
+  }
+
+  console.log(separator);
+  console.log();
+}
+
+function parseArgs(argv: string[]): {
+  file?: string;
+  pushes: number;
+  json: boolean;
+  help: boolean;
+} {
+  const args = argv.slice(2);
+  let file: string | undefined;
+  let pushes = 10;
+  let json = false;
+  let help = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+
+    if (arg === "--help" || arg === "-h") {
+      help = true;
+    } else if (arg === "--json") {
+      json = true;
+    } else if (arg === "--file" || arg === "-f") {
+      file = args[++i];
+    } else if (arg === "--pushes" || arg === "-p") {
+      const val = parseInt(args[++i] ?? "", 10);
+      if (!isNaN(val) && val > 0) pushes = val;
+    } else if (!arg.startsWith("-")) {
+      // Positional argument treated as file path
+      file = arg;
+    }
+  }
+
+  return { file, pushes, json, help };
+}
+
+function printHelp(): void {
+  console.log(`
+gha-cost - Estimate GitHub Actions workflow costs
+
+USAGE
+  gha-cost [options]
+  gha-cost --file <path> [options]
+
+OPTIONS
+  --file, -f <path>    Path to a specific workflow YAML file
+  --pushes, -p <n>     Estimated pushes/triggers per day (default: 10)
+  --json               Output results as JSON (for CI integration)
+  --help, -h           Show this help
+
+EXAMPLES
+  gha-cost
+      Scan all workflows in .github/workflows/ of the current directory
+
+  gha-cost --file .github/workflows/ci.yml
+      Estimate cost for a specific workflow
+
+  gha-cost --pushes 20 --json
+      Output JSON with 20 pushes/day assumption
+
+RUNNER RATES (USD per minute, GitHub-hosted)
+  ubuntu-latest    $0.008
+  windows-latest   $0.016
+  macos-latest     $0.080
+`);
+}
+
+function collectWorkflowFiles(file?: string): string[] {
+  if (file) {
+    return [resolve(process.cwd(), file)];
+  }
+
+  const workflowDir = join(process.cwd(), ".github", "workflows");
+
+  let entries: string[];
+  try {
+    entries = readdirSync(workflowDir);
+  } catch {
+    console.error(
+      `No .github/workflows directory found in ${process.cwd()}\nUse --file to specify a workflow file directly.`
+    );
+    process.exit(1);
+  }
+
+  const yamlFiles = entries
+    .filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"))
+    .map((f) => join(workflowDir, f));
+
+  if (yamlFiles.length === 0) {
+    console.error("No YAML workflow files found in .github/workflows/");
+    process.exit(1);
+  }
+
+  return yamlFiles;
+}
+
+async function main(): Promise<void> {
+  const opts = parseArgs(process.argv);
+
+  if (opts.help) {
+    printHelp();
+    process.exit(0);
+  }
+
+  const files = collectWorkflowFiles(opts.file);
+  const results: WorkflowEstimate[] = [];
+
+  for (const filePath of files) {
+    try {
+      const estimate = estimateWorkflow(filePath, opts.pushes);
+      results.push(estimate);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!opts.json) {
+        console.error(`Error processing ${filePath}: ${msg}`);
+      }
+    }
+  }
+
+  if (results.length === 0) {
+    console.error("No workflows could be estimated.");
+    process.exit(1);
+  }
+
+  if (opts.json) {
+    console.log(JSON.stringify(results, null, 2));
+    return;
+  }
+
+  for (const estimate of results) {
+    printWorkflowReport(estimate, opts.pushes);
+  }
+
+  // Multi-workflow aggregate
+  if (results.length > 1) {
+    const totalPerRun = results.reduce((s, r) => s + r.totalEstimatedCostPerRun, 0);
+    const totalPerDay = results.reduce((s, r) => s + r.totalEstimatedCostPerDay, 0);
+    const totalPerMonth = results.reduce((s, r) => s + r.totalEstimatedCostPerMonth, 0);
+
+    const separator = colorize("=".repeat(60), DIM);
+    console.log(separator);
+    console.log(bold(`Aggregate (${results.length} workflows)`));
+    console.log(`  Cost per run:   ${colorize(formatCost(totalPerRun), GREEN)}`);
+    console.log(`  Cost per day:   ${colorize(formatCost(totalPerDay), YELLOW)}`);
+    console.log(`  Cost per month: ${colorize(formatCost(totalPerMonth), RED)}`);
+    console.log(separator);
+    console.log();
+  }
+}
+
+main().catch((err) => {
+  console.error("Unexpected error:", err instanceof Error ? err.message : String(err));
+  process.exit(1);
+});

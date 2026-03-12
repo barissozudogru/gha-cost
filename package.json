@@ -1,0 +1,39 @@
+{
+  "name": "@barissozudogru/gha-cost",
+  "version": "0.1.0",
+  "description": "Estimate GitHub Actions workflow costs before running",
+  "bin": {
+    "gha-cost": "./dist/cli.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/barissozudogru/gha-cost.git"
+  },
+  "keywords": [
+    "github-actions",
+    "cost",
+    "estimation",
+    "ci-cd",
+    "cli"
+  ],
+  "author": "Baris Sozudogru",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.19.37",
+    "typescript": "^5.9.3"
+  }
+}
