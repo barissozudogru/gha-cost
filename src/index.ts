@@ -87,7 +87,16 @@ function roundUpToMinute(seconds: number): number {
   return Math.ceil(seconds / BILLING_INCREMENT_SECONDS) * BILLING_INCREMENT_SECONDS;
 }
 
-function calculateJobCost(seconds: number, runner: RunnerType): number {
+function calculateJobCost(
+  seconds: number,
+  runner: RunnerType,
+  selfHostedRate?: number
+): number {
+  // Self-hosted runners have no GitHub billing cost by default, unless a rate is supplied
+  if (runner === "unknown" && selfHostedRate !== undefined) {
+    const billedSeconds = roundUpToMinute(seconds);
+    return (billedSeconds / 60) * selfHostedRate;
+  }
   const billedSeconds = roundUpToMinute(seconds);
   const minutes = billedSeconds / 60;
   return minutes * COST_RATES[runner];
@@ -117,7 +126,13 @@ interface RawWorkflow {
 }
 
 function getIndent(line: string): number {
-  return line.length - line.trimStart().length;
+  // Treat leading tabs as spaces (1 tab = 2 spaces) and emit a warning once
+  const expanded = line.replace(/^\t+/, (tabs) => "  ".repeat(tabs.length));
+  return expanded.length - expanded.trimStart().length;
+}
+
+function expandTabs(line: string): string {
+  return line.replace(/^\t+/, (tabs) => "  ".repeat(tabs.length));
 }
 
 function stripInlineComment(value: string): string {
@@ -132,7 +147,7 @@ function parseMatrixValues(lines: string[], startIndex: number, indent: number):
   let i = startIndex;
 
   while (i < lines.length) {
-    const line = lines[i];
+    const line = expandTabs(lines[i]);
     if (line.trim() === "" || line.trim().startsWith("#")) {
       i++;
       continue;
@@ -156,17 +171,55 @@ function parseInlineArray(value: string): string[] {
   return match[1].split(",").map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
 }
 
-function parseWorkflowYaml(content: string): RawWorkflow {
-  const lines = content.split("\n");
-  const workflow: RawWorkflow = { name: "", jobs: [] };
+/**
+ * Detect the indent unit used in this YAML file by examining the first key
+ * found inside the jobs: block. Returns the number of spaces per indent level.
+ * Falls back to 2 if detection fails.
+ */
+function detectJobIndent(lines: string[], jobsStart: number): number {
+  for (let j = jobsStart; j < lines.length; j++) {
+    const line = expandTabs(lines[j]);
+    if (line.trim() === "" || line.trim().startsWith("#")) continue;
+    // This is the first non-blank line after jobs:
+    const indent = getIndent(line);
+    if (indent > 0) return indent;
+    // If indent is 0, we've hit a top-level key — no jobs found
+    break;
+  }
+  return 2;
+}
 
-  let i = 0;
+/**
+ * Check whether a line contains a tab character at the start (before expansion).
+ * Used to emit a one-time warning.
+ */
+function hasLeadingTab(line: string): boolean {
+  return line.length > 0 && line[0] === "\t";
+}
+
+function parseWorkflowYaml(content: string): RawWorkflow {
+  const rawLines = content.split("\n");
+
+  // Warn once if tabs are used for indentation
+  const tabLine = rawLines.findIndex(hasLeadingTab);
+  if (tabLine !== -1) {
+    process.stderr.write(
+      `Warning: tab indentation detected (line ${tabLine + 1}). Tabs have been converted to spaces.\n`
+    );
+  }
+
+  // Work with tab-expanded lines throughout
+  const lines = rawLines.map(expandTabs);
+
+  const workflow: RawWorkflow = { name: "", jobs: [] };
 
   // Extract top-level name
   for (let j = 0; j < lines.length; j++) {
     const line = lines[j];
-    if (line.match(/^name:\s*/)) {
-      workflow.name = stripInlineComment(line.replace(/^name:\s*/, "").replace(/^['"]|['"]$/g, ""));
+    if (/^name:\s*/.test(line)) {
+      workflow.name = stripInlineComment(
+        line.replace(/^name:\s*/, "").replace(/^['"]|['"]$/g, "")
+      );
       break;
     }
   }
@@ -174,7 +227,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
   // Find jobs: block
   let jobsStart = -1;
   for (let j = 0; j < lines.length; j++) {
-    if (lines[j].match(/^jobs:\s*$/)) {
+    if (/^jobs:\s*$/.test(lines[j])) {
       jobsStart = j + 1;
       break;
     }
@@ -182,7 +235,18 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
   if (jobsStart === -1) return workflow;
 
-  i = jobsStart;
+  // Detect the indentation unit used under jobs:
+  const jobIndent = detectJobIndent(lines, jobsStart);
+  // Children of job entries are one additional indent level deeper
+  const jobChildIndent = jobIndent * 2;
+  const strategyIndent = jobIndent * 3;
+  const matrixIndent = jobIndent * 4;
+  const matrixKeyIndent = jobIndent * 4;
+  const matrixValueIndent = jobIndent * 5;
+  const stepListIndent = jobIndent * 3;
+  const stepPropIndent = jobIndent * 4;
+
+  let i = jobsStart;
 
   while (i < lines.length) {
     const line = lines[i];
@@ -194,8 +258,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
     const indent = getIndent(line);
 
-    // Job-level keys are at indent=2 (standard) and look like "  job-id:"
-    if (indent === 2 && line.match(/^\s{2}[\w-]+:\s*$/)) {
+    // Job-level keys are at jobIndent and look like "  job-id:"
+    // Must be exactly at job indent and be a bare key (no leading dash)
+    if (
+      indent === jobIndent &&
+      /^[\w-]+:\s*$/.test(line.trimStart())
+    ) {
       const jobId = line.trim().replace(/:$/, "");
       const job: RawJob = {
         id: jobId,
@@ -207,7 +275,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
       i++;
 
-      // Parse job body
+      // Parse job body — lines at indent > jobIndent belong to this job
       while (i < lines.length) {
         const jobLine = lines[i];
 
@@ -216,33 +284,31 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           continue;
         }
 
-        const jobIndent = getIndent(jobLine);
+        const jobLineIndent = getIndent(jobLine);
 
-        // End of this job (next job or top-level key)
-        if (jobIndent <= 2 && !jobLine.match(/^\s{4}/)) {
-          break;
-        }
+        // End of this job (next job at same indent, or top-level key)
+        if (jobLineIndent <= jobIndent) break;
 
-        // Job name override
-        if (jobLine.match(/^\s{4}name:\s*/)) {
+        // Job name override — at jobChildIndent
+        if (jobLineIndent === jobChildIndent && /^name:\s*/.test(jobLine.trimStart())) {
           job.name = stripInlineComment(
-            jobLine.replace(/^\s{4}name:\s*/, "").replace(/^['"]|['"]$/g, "")
+            jobLine.trimStart().replace(/^name:\s*/, "").replace(/^['"]|['"]$/g, "")
           );
           i++;
           continue;
         }
 
-        // runs-on
-        if (jobLine.match(/^\s{4}runs-on:\s*/)) {
+        // runs-on — at jobChildIndent
+        if (jobLineIndent === jobChildIndent && /^runs-on:\s*/.test(jobLine.trimStart())) {
           job.runsOn = stripInlineComment(
-            jobLine.replace(/^\s{4}runs-on:\s*/, "").replace(/^['"]|['"]$/g, "")
+            jobLine.trimStart().replace(/^runs-on:\s*/, "").replace(/^['"]|['"]$/g, "")
           );
           i++;
           continue;
         }
 
-        // strategy.matrix
-        if (jobLine.match(/^\s{4}strategy:\s*$/)) {
+        // strategy: — at jobChildIndent
+        if (jobLineIndent === jobChildIndent && /^strategy:\s*$/.test(jobLine.trimStart())) {
           i++;
           while (i < lines.length) {
             const stratLine = lines[i];
@@ -250,9 +316,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               i++;
               continue;
             }
-            if (getIndent(stratLine) <= 4) break;
+            if (getIndent(stratLine) <= jobChildIndent) break;
 
-            if (stratLine.match(/^\s{6}matrix:\s*$/)) {
+            if (
+              getIndent(stratLine) === strategyIndent &&
+              /^matrix:\s*$/.test(stratLine.trimStart())
+            ) {
               i++;
               while (i < lines.length) {
                 const matLine = lines[i];
@@ -260,11 +329,13 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                   i++;
                   continue;
                 }
-                if (getIndent(matLine) <= 6) break;
+                if (getIndent(matLine) <= strategyIndent) break;
 
                 // Matrix key: [values] (inline)
-                const inlineMatch = matLine.match(/^\s{8}([\w-]+):\s*(\[.+\])/);
-                if (inlineMatch) {
+                const inlineMatch = matLine
+                  .trimStart()
+                  .match(/^([\w-]+):\s*(\[.+\])/);
+                if (inlineMatch && getIndent(matLine) === matrixKeyIndent) {
                   const values = parseInlineArray(inlineMatch[2]);
                   if (values.length > 0) {
                     job.matrix.push({ key: inlineMatch[1], values });
@@ -274,18 +345,22 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 }
 
                 // Matrix key: (block list)
-                const blockMatch = matLine.match(/^\s{8}([\w-]+):\s*$/);
-                if (blockMatch) {
+                const blockMatch = matLine.trimStart().match(/^([\w-]+):\s*$/);
+                if (blockMatch && getIndent(matLine) === matrixKeyIndent) {
                   i++;
-                  const values = parseMatrixValues(lines, i, 10);
-                  // advance i past the list items
+                  const values = parseMatrixValues(lines, i, matrixValueIndent);
+                  // Advance i past the list items
                   while (i < lines.length) {
                     const vl = lines[i];
                     if (vl.trim() === "" || vl.trim().startsWith("#")) {
                       i++;
                       continue;
                     }
-                    if (getIndent(vl) < 10 || !vl.trimStart().startsWith("- ")) break;
+                    if (
+                      getIndent(vl) < matrixValueIndent ||
+                      !vl.trimStart().startsWith("- ")
+                    )
+                      break;
                     i++;
                   }
                   if (values.length > 0) {
@@ -304,8 +379,8 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           continue;
         }
 
-        // steps:
-        if (jobLine.match(/^\s{4}steps:\s*$/)) {
+        // steps: — at jobChildIndent
+        if (jobLineIndent === jobChildIndent && /^steps:\s*$/.test(jobLine.trimStart())) {
           i++;
           let currentStep: Partial<RawStep> | null = null;
 
@@ -319,10 +394,13 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
             const stepIndent = getIndent(stepLine);
 
-            if (stepIndent < 4) break;
+            if (stepIndent < jobChildIndent) break;
 
-            // New step item
-            if (stepIndent === 6 && stepLine.match(/^\s{6}-\s/)) {
+            // New step item — list items are at stepListIndent (jobIndent * 3)
+            if (
+              stepIndent === stepListIndent &&
+              /^-\s/.test(stepLine.trimStart())
+            ) {
               if (currentStep) {
                 job.steps.push({
                   name: currentStep.name ?? "unnamed step",
@@ -333,7 +411,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               currentStep = {};
 
               // Check for inline key on same line as dash: "- uses: actions/checkout@v4"
-              const inlineKey = stepLine.replace(/^\s{6}-\s+/, "");
+              const inlineKey = stepLine.trimStart().replace(/^-\s+/, "");
               const keyMatch = inlineKey.match(/^(name|uses|run):\s*(.*)/);
               if (keyMatch) {
                 const key = keyMatch[1] as "name" | "uses" | "run";
@@ -344,23 +422,29 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               continue;
             }
 
-            // Step properties at indent 8
-            if (stepIndent === 8 && currentStep !== null) {
-              const propMatch = stepLine.match(/^\s{8}(name|uses|run):\s*(.*)/);
+            // Step properties at stepPropIndent (jobIndent * 4)
+            if (stepIndent === stepPropIndent && currentStep !== null) {
+              const propMatch = stepLine
+                .trimStart()
+                .match(/^(name|uses|run):\s*(.*)/);
               if (propMatch) {
                 const key = propMatch[1] as "name" | "uses" | "run";
                 let val = stripInlineComment(propMatch[2]).replace(/^['"]|['"]$/g, "");
-                // Handle multi-line run blocks (pipe |)
+
+                // Handle multi-line run blocks (pipe | or folded >)
                 if (val === "|" || val === ">") {
                   val = "";
                   i++;
                   while (i < lines.length) {
                     const runLine = lines[i];
+                    // Blank lines are valid inside a block scalar — include them
+                    // and only stop when we see a non-blank line at <= stepPropIndent
                     if (runLine.trim() === "") {
+                      val += " ";
                       i++;
                       continue;
                     }
-                    if (getIndent(runLine) <= 8) break;
+                    if (getIndent(runLine) <= stepPropIndent) break;
                     val += " " + runLine.trim();
                     i++;
                   }
@@ -465,7 +549,11 @@ function generateHints(jobs: JobEstimate[]): string[] {
   return hints;
 }
 
-export function estimateWorkflow(filePath: string, pushesPerDay: number): WorkflowEstimate {
+export function estimateWorkflow(
+  filePath: string,
+  pushesPerDay: number,
+  selfHostedRate?: number
+): WorkflowEstimate {
   const content = readFileSync(filePath, "utf-8");
   const raw = parseWorkflowYaml(content);
 
@@ -487,7 +575,8 @@ export function estimateWorkflow(filePath: string, pushesPerDay: number): Workfl
 
     const matrixCombinations = computeMatrixCombinations(rawJob.matrix);
     const totalSeconds = totalSecondsPerMatrix * matrixCombinations;
-    const costPerRun = calculateJobCost(totalSecondsPerMatrix, runner) * matrixCombinations;
+    const costPerRun =
+      calculateJobCost(totalSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
 
     jobEstimates.push({
       id: rawJob.id,

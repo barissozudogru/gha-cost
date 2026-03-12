@@ -47,4 +47,7 @@ export interface CliOptions {
   file?: string;
   pushes: number;
   json: boolean;
+  selfHostedRate?: number;
+  version: boolean;
+  help: boolean;
 }

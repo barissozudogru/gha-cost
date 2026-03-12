@@ -1,10 +1,27 @@
 #!/usr/bin/env node
 
-import { readdirSync } from "fs";
-import { resolve, join } from "path";
+import { readdirSync, readFileSync } from "fs";
+import { resolve, join, dirname } from "path";
+import { fileURLToPath } from "url";
 import { estimateWorkflow, formatDuration } from "./index.js";
-import type { WorkflowEstimate, JobEstimate } from "./types.js";
+import type { WorkflowEstimate, JobEstimate, CliOptions } from "./types.js";
 
+// Resolve package.json relative to this file so --version works after compilation
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PKG_PATH = join(__dirname, "..", "package.json");
+
+function readPackageVersion(): string {
+  try {
+    const raw = readFileSync(PKG_PATH, "utf-8");
+    const pkg = JSON.parse(raw) as { version?: string };
+    return pkg.version ?? "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+
+// ANSI escape codes — only emitted when stdout is a TTY
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
@@ -12,10 +29,13 @@ const GREEN = "\x1b[32m";
 const YELLOW = "\x1b[33m";
 const CYAN = "\x1b[36m";
 const RED = "\x1b[31m";
-const WHITE = "\x1b[37m";
+// Magenta is visible on both dark and light terminal backgrounds
+const MAGENTA = "\x1b[35m";
+
+const isTTY = Boolean(process.stdout.isTTY);
 
 function colorize(text: string, color: string): string {
-  if (!process.stdout.isTTY) return text;
+  if (!isTTY) return text;
   return `${color}${text}${RESET}`;
 }
 
@@ -43,7 +63,8 @@ function runnerColor(runner: string): string {
     case "windows":
       return CYAN;
     default:
-      return WHITE;
+      // "unknown" = self-hosted — use magenta, visible on any background
+      return MAGENTA;
   }
 }
 
@@ -128,23 +149,22 @@ function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): 
   console.log();
 }
 
-function parseArgs(argv: string[]): {
-  file?: string;
-  pushes: number;
-  json: boolean;
-  help: boolean;
-} {
+function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boolean } {
   const args = argv.slice(2);
   let file: string | undefined;
   let pushes = 10;
   let json = false;
   let help = false;
+  let version = false;
+  let selfHostedRate: number | undefined;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
 
     if (arg === "--help" || arg === "-h") {
       help = true;
+    } else if (arg === "--version" || arg === "-v") {
+      version = true;
     } else if (arg === "--json") {
       json = true;
     } else if (arg === "--file" || arg === "-f") {
@@ -152,28 +172,33 @@ function parseArgs(argv: string[]): {
     } else if (arg === "--pushes" || arg === "-p") {
       const val = parseInt(args[++i] ?? "", 10);
       if (!isNaN(val) && val > 0) pushes = val;
+    } else if (arg === "--self-hosted-rate") {
+      const val = parseFloat(args[++i] ?? "");
+      if (!isNaN(val) && val >= 0) selfHostedRate = val;
     } else if (!arg.startsWith("-")) {
       // Positional argument treated as file path
       file = arg;
     }
   }
 
-  return { file, pushes, json, help };
+  return { file, pushes, json, help, version, selfHostedRate };
 }
 
-function printHelp(): void {
+function printHelp(version: string): void {
   console.log(`
-gha-cost - Estimate GitHub Actions workflow costs
+gha-cost v${version} - Estimate GitHub Actions workflow costs
 
 USAGE
   gha-cost [options]
   gha-cost --file <path> [options]
 
 OPTIONS
-  --file, -f <path>    Path to a specific workflow YAML file
-  --pushes, -p <n>     Estimated pushes/triggers per day (default: 10)
-  --json               Output results as JSON (for CI integration)
-  --help, -h           Show this help
+  --file, -f <path>          Path to a specific workflow YAML file
+  --pushes, -p <n>           Estimated pushes/triggers per day (default: 10)
+  --self-hosted-rate <rate>  Cost per minute (USD) for self-hosted runners (default: 0)
+  --json                     Output results as JSON (for CI integration)
+  --version, -v              Print version and exit
+  --help, -h                 Show this help
 
 EXAMPLES
   gha-cost
@@ -184,6 +209,9 @@ EXAMPLES
 
   gha-cost --pushes 20 --json
       Output JSON with 20 pushes/day assumption
+
+  gha-cost --self-hosted-rate 0.004
+      Treat unknown (self-hosted) runners at $0.004/min
 
 RUNNER RATES (USD per minute, GitHub-hosted)
   ubuntu-latest    $0.008
@@ -224,8 +252,13 @@ function collectWorkflowFiles(file?: string): string[] {
 async function main(): Promise<void> {
   const opts = parseArgs(process.argv);
 
+  if (opts.version) {
+    console.log(readPackageVersion());
+    process.exit(0);
+  }
+
   if (opts.help) {
-    printHelp();
+    printHelp(readPackageVersion());
     process.exit(0);
   }
 
@@ -234,7 +267,7 @@ async function main(): Promise<void> {
 
   for (const filePath of files) {
     try {
-      const estimate = estimateWorkflow(filePath, opts.pushes);
+      const estimate = estimateWorkflow(filePath, opts.pushes, opts.selfHostedRate);
       results.push(estimate);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
