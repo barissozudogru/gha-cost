@@ -1,6 +1,6 @@
 {
   "name": "@barissozudogru/gha-cost",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Estimate GitHub Actions workflow costs before running",
   "type": "module",
   "bin": {
@@ -13,6 +13,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "chmod +x dist/cli.js",
     "prepublishOnly": "npm run build"
   },
   "files": [

@@ -28,7 +28,9 @@ gha-cost [options]
 |------|-------|---------|-------------|
 | `--file <path>` | `-f` | auto-scan | Path to a specific workflow YAML file |
 | `--pushes <n>` | `-p` | `10` | Estimated triggers per day |
+| `--self-hosted-rate <rate>` | | `0` | Cost per minute (USD) for self-hosted runners |
 | `--json` | | false | Output results as JSON (CI-friendly) |
+| `--version` | `-v` | | Print version and exit |
 | `--help` | `-h` | | Show help |
 
 ### Examples
@@ -45,6 +47,12 @@ gha-cost --pushes 50
 
 # Machine-readable output for CI
 gha-cost --json | jq '.[] | .totalEstimatedCostPerMonth'
+
+# Treat self-hosted runners as $0.004/min
+gha-cost --self-hosted-rate 0.004
+
+# Print the installed version
+gha-cost --version
 ```
 
 ## Cost Rates
