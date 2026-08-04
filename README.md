@@ -1,48 +1,10 @@
-<h1 align="center">gha-cost</h1>
+# gha-cost
 
-<p align="center">
-  Know what your GitHub Actions workflows cost before you push.
-</p>
+Know what your GitHub Actions workflows cost before you push.
 
-<p align="center">
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?style=flat&logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Node.js-%3E%3D18-339933?style=flat&logo=node.js&logoColor=white" alt="Node.js >= 18">
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat" alt="MIT License">
-  <img src="https://img.shields.io/badge/Zero_Dependencies-brightgreen?style=flat" alt="Zero Dependencies">
-</p>
+`gha-cost` parses workflow YAML files locally without executing them or making API calls. It expands matrix combinations, estimates step durations using heuristics for common actions, rounds job runtimes to whole-minute increments per GitHub billing rules, and projects costs per run, day, and month.
 
----
-
-## What It Does
-
-`gha-cost` reads your workflow YAML files without executing them, then:
-
-- Enumerates every job and expands all matrix combinations
-- Estimates per-step duration using heuristics for common actions and shell commands
-- Applies GitHub's per-minute billing rates, rounded up to the nearest minute per job
-- Projects cost per run, per day, and per month based on your expected trigger frequency
-- Surfaces optimization hints: missing caches, expensive runners, oversized matrices
-
-Everything runs locally. No API calls, no tokens required.
-
----
-
-## GitHub Runner Pricing
-
-Rates used for estimation (USD per minute, GitHub-hosted runners):
-
-| Runner | Rate / min | Relative cost |
-|--------|-----------|---------------|
-| `ubuntu-latest` | $0.008 | 1x (baseline) |
-| `windows-latest` | $0.016 | 2x |
-| `macos-latest` | $0.080 | 10x |
-| Self-hosted | $0.000 | configurable via `--self-hosted-rate` |
-
-Rates reflect [GitHub's published billing](https://docs.github.com/en/billing/managing-billing-for-your-products/managing-billing-for-github-actions/about-billing-for-github-actions). GitHub charges in whole-minute increments per job.
-
----
-
-## Quick Start
+## Usage
 
 ```bash
 # Run without installing
@@ -50,20 +12,10 @@ npx @barissozudogru/gha-cost
 
 # Or install globally
 npm install -g @barissozudogru/gha-cost
-gha-cost
-```
-
----
-
-## Usage
-
-```
 gha-cost [options]
 ```
 
-Run from the root of any repository. With no flags, `gha-cost` scans every YAML file under `.github/workflows/`.
-
----
+Run `gha-cost` from the root of a repository to scan all YAML files under `.github/workflows/`.
 
 ## Options
 
@@ -72,11 +24,11 @@ Run from the root of any repository. With no flags, `gha-cost` scans every YAML 
 | `--file <path>` | `-f` | auto-scan | Path to a specific workflow YAML file |
 | `--pushes <n>` | `-p` | `10` | Estimated triggers per day |
 | `--self-hosted-rate <rate>` | | `0` | Cost per minute (USD) for self-hosted runners |
-| `--json` | | `false` | Output results as JSON (CI-friendly) |
+| `--json` | | `false` | Output results as JSON |
 | `--version` | `-v` | | Print version and exit |
 | `--help` | `-h` | | Show help |
 
-**Examples:**
+Examples:
 
 ```bash
 # Scan all workflows in the current repository
@@ -91,23 +43,31 @@ gha-cost --pushes 50
 # Machine-readable output for CI gates or dashboards
 gha-cost --json | jq '.[] | .totalEstimatedCostPerMonth'
 
-# Assign a cost to self-hosted runners
+# Assign a cost rate to self-hosted runners
 gha-cost --self-hosted-rate 0.004
-
-# Print the installed version
-gha-cost --version
 ```
 
----
+## Runner Pricing
+
+Rates used for estimation (USD per minute, GitHub-hosted runners):
+
+| Runner | Rate / min | Relative cost |
+|--------|-----------|---------------|
+| `ubuntu-latest` | $0.008 | 1x (baseline) |
+| `windows-latest` | $0.016 | 2x |
+| `macos-latest` | $0.080 | 10x |
+| Self-hosted | $0.000 | Configurable via `--self-hosted-rate` |
+
+Rates reflect GitHub billing rules. GitHub charges in whole-minute increments per job.
 
 ## Example Output
 
-Given a typical CI workflow with lint, a 4-node test matrix, build, and deploy jobs:
+Given a workflow with lint, test matrix, build, and deploy jobs:
 
 ```
-────────────────────────────────────────────────────────────
+------------------------------------------------------------
 Workflow: CI  (ci.yml)
-────────────────────────────────────────────────────────────
+------------------------------------------------------------
 
   lint  [ubuntu-latest]
     - Checkout          actions/checkout      30s
@@ -135,7 +95,7 @@ Workflow: CI  (ci.yml)
     - Deploy            deploy to production  2m
     time: 2m 30s  cost: $0.0008
 
-────────────────────────────────────────────────────────────
+------------------------------------------------------------
 Summary
   Total estimated time:  45m 30s
   Cost per run:          $0.0176
@@ -147,16 +107,14 @@ Optimization hints:
      or using fail-fast: false only when necessary.
   !  Consider adding path filters (on.push.paths) to skip workflows when
      unrelated files change.
-────────────────────────────────────────────────────────────
+------------------------------------------------------------
 ```
 
-The monthly projection assumes the configured `--pushes` value every day for 30 days. Adjust with `--pushes` to match your actual merge cadence.
+Monthly projections assume the configured `--pushes` value daily for 30 days.
 
----
+## JSON Output
 
-## JSON Output Schema
-
-Use `--json` to integrate cost data into CI pipelines, budget dashboards, or cost-gate scripts:
+Use `--json` to output structured data for CI scripts or dashboards:
 
 ```bash
 gha-cost --json | jq '.[] | {workflow: .workflowName, monthly: .totalEstimatedCostPerMonth}'
@@ -198,17 +156,13 @@ gha-cost --json | jq '.[] | {workflow: .workflowName, monthly: .totalEstimatedCo
 ]
 ```
 
----
-
 ## Exit Codes
 
 | Code | Meaning |
 |------|---------|
-| `0` | Success — at least one workflow estimated |
-| `1` | No workflow files found, or all files failed to parse |
-
----
+| `0` | Success - at least one workflow estimated |
+| `1` | No workflow files found or all files failed to parse |
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT - see [LICENSE](./LICENSE).
