@@ -14,7 +14,7 @@ const COST_RATES: CostRates = {
   ubuntu: 0.008,
   macos: 0.08,
   windows: 0.016,
-  unknown: 0.008,
+  unknown: 0,
 };
 
 // Minimum billing increment is 1 minute per job
@@ -92,14 +92,13 @@ function calculateJobCost(
   runner: RunnerType,
   selfHostedRate?: number
 ): number {
-  // Self-hosted runners have no GitHub billing cost by default, unless a rate is supplied
-  if (runner === "unknown" && selfHostedRate !== undefined) {
-    const billedSeconds = roundUpToMinute(seconds);
-    return (billedSeconds / 60) * selfHostedRate;
-  }
   const billedSeconds = roundUpToMinute(seconds);
   const minutes = billedSeconds / 60;
-  return minutes * COST_RATES[runner];
+  const rate =
+    runner === "unknown"
+      ? (selfHostedRate ?? COST_RATES.unknown)
+      : COST_RATES[runner];
+  return minutes * rate;
 }
 
 // Minimal YAML parser for GitHub Actions workflow structure.
