@@ -57,4 +57,26 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("detects self-hosted runner even if linux is in the label array", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-sh-linux-${Date.now()}.yml`);
+    const yaml = `
+name: Self Hosted Linux Test
+jobs:
+  build:
+    runs-on: [self-hosted, linux, x64]
+    steps:
+      - name: Build
+        run: echo "hello"
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0].runner, "unknown");
+      assert.equal(estimate.jobs[0].estimatedCostUsd, 0);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
