@@ -64,6 +64,7 @@ const STEP_DURATION_HEURISTICS: Array<{
 
 function detectRunnerType(runsOn: string): RunnerType {
   const label = runsOn.toLowerCase();
+  if (label.includes("self-hosted")) return "unknown";
   if (label.includes("ubuntu") || label.includes("linux")) return "ubuntu";
   if (label.includes("macos") || label.includes("mac-os") || label.includes("osx")) return "macos";
   if (label.includes("windows")) return "windows";
