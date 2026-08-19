@@ -21,7 +21,7 @@ function readPackageVersion(): string {
   }
 }
 
-// ANSI escape codes — only emitted when stdout is a TTY
+// ANSI escape codes - only emitted when stdout is a TTY
 const RESET = "\x1b[0m";
 const BOLD = "\x1b[1m";
 const DIM = "\x1b[2m";
@@ -63,7 +63,7 @@ function runnerColor(runner: string): string {
     case "windows":
       return CYAN;
     default:
-      // "unknown" = self-hosted — use magenta, visible on any background
+      // "unknown" = self-hosted - use magenta, visible on any background
       return MAGENTA;
   }
 }

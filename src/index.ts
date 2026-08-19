@@ -198,7 +198,7 @@ function detectJobIndent(lines: string[], jobsStart: number): number {
     // This is the first non-blank line after jobs:
     const indent = getIndent(line);
     if (indent > 0) return indent;
-    // If indent is 0, we've hit a top-level key — no jobs found
+    // If indent is 0, we've hit a top-level key - no jobs found
     break;
   }
   return 2;
@@ -290,7 +290,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
       i++;
 
-      // Parse job body — lines at indent > jobIndent belong to this job
+      // Parse job body - lines at indent > jobIndent belong to this job
       while (i < lines.length) {
         const jobLine = lines[i];
 
@@ -304,7 +304,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         // End of this job (next job at same indent, or top-level key)
         if (jobLineIndent <= jobIndent) break;
 
-        // Job name override — at jobChildIndent
+        // Job name override - at jobChildIndent
         if (jobLineIndent === jobChildIndent && /^name:\s*/.test(jobLine.trimStart())) {
           job.name = stripInlineComment(
             jobLine.trimStart().replace(/^name:\s*/, "").replace(/^['"]|['"]$/g, "")
@@ -313,7 +313,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           continue;
         }
 
-        // runs-on — at jobChildIndent
+        // runs-on - at jobChildIndent
         if (jobLineIndent === jobChildIndent && /^runs-on:\s*/.test(jobLine.trimStart())) {
           job.runsOn = stripInlineComment(
             jobLine.trimStart().replace(/^runs-on:\s*/, "").replace(/^['"]|['"]$/g, "")
@@ -322,7 +322,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           continue;
         }
 
-        // strategy: — at jobChildIndent
+        // strategy: - at jobChildIndent
         if (jobLineIndent === jobChildIndent && /^strategy:\s*$/.test(jobLine.trimStart())) {
           i++;
           while (i < lines.length) {
@@ -394,7 +394,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           continue;
         }
 
-        // steps: — at jobChildIndent
+        // steps: - at jobChildIndent
         if (jobLineIndent === jobChildIndent && /^steps:\s*$/.test(jobLine.trimStart())) {
           i++;
           let currentStep: Partial<RawStep> | null = null;
@@ -411,7 +411,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
             if (stepIndent < jobChildIndent) break;
 
-            // New step item — list items are at stepListIndent (jobIndent * 3)
+            // New step item - list items are at stepListIndent (jobIndent * 3)
             if (
               stepIndent === stepListIndent &&
               /^-\s/.test(stepLine.trimStart())
@@ -452,7 +452,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                   i++;
                   while (i < lines.length) {
                     const runLine = lines[i];
-                    // Blank lines are valid inside a block scalar — include them
+                    // Blank lines are valid inside a block scalar - include them
                     // and only stop when we see a non-blank line at <= stepPropIndent
                     if (runLine.trim() === "") {
                       val += " ";
