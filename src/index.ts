@@ -1,3 +1,4 @@
+import { parseTriggers, estimateRunsPerDay } from "./triggers.js";
 import { readFileSync } from "fs";
 import { basename } from "path";
 import type {
@@ -20,36 +21,45 @@ const COST_RATES: CostRates = {
 // Minimum billing increment is 1 minute per job
 const BILLING_INCREMENT_SECONDS = 60;
 
-// Step duration heuristics based on action name / run command content
+// Step duration heuristics based on action name / run command content.
+//
+// These are static estimates, not measurements. They were recalibrated against
+// real run data: a workflow this table put at 12m 15s actually averaged 1m 39s
+// across ten runs, because checkout was assumed at 30s against a measured 13.7s,
+// setup-node at 45s against 8.9s, and npm ci at 120s against 24s.
+//
+// The numbers below are central estimates for a warm-cache run of a small to
+// medium project. A large repository will exceed them. Treat the output as a
+// pre-merge sanity check rather than a billing forecast.
 const STEP_DURATION_HEURISTICS: Array<{
   pattern: RegExp;
   seconds: number;
   label: string;
 }> = [
-  { pattern: /actions\/checkout/i, seconds: 30, label: "checkout" },
-  { pattern: /actions\/setup-node/i, seconds: 45, label: "setup-node" },
-  { pattern: /actions\/setup-python/i, seconds: 40, label: "setup-python" },
-  { pattern: /actions\/setup-java/i, seconds: 60, label: "setup-java" },
-  { pattern: /actions\/setup-go/i, seconds: 40, label: "setup-go" },
-  { pattern: /actions\/cache/i, seconds: 20, label: "cache" },
-  { pattern: /actions\/upload-artifact/i, seconds: 30, label: "upload-artifact" },
-  { pattern: /actions\/download-artifact/i, seconds: 20, label: "download-artifact" },
-  { pattern: /docker\/build-push-action/i, seconds: 300, label: "docker-build-push" },
-  { pattern: /docker\/login-action/i, seconds: 10, label: "docker-login" },
-  { pattern: /aws-actions\//i, seconds: 30, label: "aws-action" },
-  { pattern: /google-github-actions\//i, seconds: 30, label: "gcp-action" },
-  { pattern: /azure\//i, seconds: 30, label: "azure-action" },
-  { pattern: /npm\s+(ci|install)/i, seconds: 120, label: "npm-install" },
-  { pattern: /npm\s+(run\s+)?test/i, seconds: 300, label: "npm-test" },
-  { pattern: /npm\s+(run\s+)?build/i, seconds: 180, label: "npm-build" },
-  { pattern: /npm\s+(run\s+)?lint/i, seconds: 60, label: "npm-lint" },
-  { pattern: /yarn\s+(install|ci)/i, seconds: 120, label: "yarn-install" },
-  { pattern: /yarn\s+(test|jest)/i, seconds: 300, label: "yarn-test" },
-  { pattern: /yarn\s+build/i, seconds: 180, label: "yarn-build" },
-  { pattern: /pnpm\s+(install|ci)/i, seconds: 100, label: "pnpm-install" },
-  { pattern: /pnpm\s+test/i, seconds: 300, label: "pnpm-test" },
-  { pattern: /pnpm\s+build/i, seconds: 180, label: "pnpm-build" },
-  { pattern: /pytest/i, seconds: 300, label: "pytest" },
+  { pattern: /actions\/checkout/i, seconds: 15, label: "checkout" },
+  { pattern: /actions\/setup-node/i, seconds: 15, label: "setup-node" },
+  { pattern: /actions\/setup-python/i, seconds: 20, label: "setup-python" },
+  { pattern: /actions\/setup-java/i, seconds: 30, label: "setup-java" },
+  { pattern: /actions\/setup-go/i, seconds: 20, label: "setup-go" },
+  { pattern: /actions\/cache/i, seconds: 10, label: "cache" },
+  { pattern: /actions\/upload-artifact/i, seconds: 15, label: "upload-artifact" },
+  { pattern: /actions\/download-artifact/i, seconds: 10, label: "download-artifact" },
+  { pattern: /docker\/build-push-action/i, seconds: 180, label: "docker-build-push" },
+  { pattern: /docker\/login-action/i, seconds: 5, label: "docker-login" },
+  { pattern: /aws-actions\//i, seconds: 15, label: "aws-action" },
+  { pattern: /google-github-actions\//i, seconds: 15, label: "gcp-action" },
+  { pattern: /azure\//i, seconds: 15, label: "azure-action" },
+  { pattern: /npm\s+(ci|install)/i, seconds: 45, label: "npm-install" },
+  { pattern: /npm\s+(run\s+)?test/i, seconds: 120, label: "npm-test" },
+  { pattern: /npm\s+(run\s+)?build/i, seconds: 45, label: "npm-build" },
+  { pattern: /npm\s+(run\s+)?lint/i, seconds: 30, label: "npm-lint" },
+  { pattern: /yarn\s+(install|ci)/i, seconds: 45, label: "yarn-install" },
+  { pattern: /yarn\s+(test|jest)/i, seconds: 120, label: "yarn-test" },
+  { pattern: /yarn\s+build/i, seconds: 60, label: "yarn-build" },
+  { pattern: /pnpm\s+(install|ci)/i, seconds: 40, label: "pnpm-install" },
+  { pattern: /pnpm\s+test/i, seconds: 120, label: "pnpm-test" },
+  { pattern: /pnpm\s+build/i, seconds: 60, label: "pnpm-build" },
+  { pattern: /pytest/i, seconds: 120, label: "pytest" },
   { pattern: /go\s+test/i, seconds: 180, label: "go-test" },
   { pattern: /go\s+build/i, seconds: 120, label: "go-build" },
   { pattern: /cargo\s+test/i, seconds: 300, label: "cargo-test" },
@@ -57,9 +67,13 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /mvn\s+(test|verify)/i, seconds: 300, label: "maven-test" },
   { pattern: /gradle\s+(test|build)/i, seconds: 300, label: "gradle-build" },
   { pattern: /terraform\s+(plan|apply)/i, seconds: 120, label: "terraform" },
-  { pattern: /deploy/i, seconds: 120, label: "deploy" },
-  { pattern: /publish/i, seconds: 60, label: "publish" },
-  { pattern: /push/i, seconds: 60, label: "push" },
+  // Word-anchored. Unanchored /publish/i matched a step named "Published
+  // content identity scan", a shell one-liner that measured 0.1s, and billed it
+  // at a minute. These generic verbs are the loosest matchers in the table, so
+  // they are both anchored and conservative.
+  { pattern: /\bdeploy(s|ing|ment)?\b/i, seconds: 45, label: "deploy" },
+  { pattern: /\bpublish\b/i, seconds: 30, label: "publish" },
+  { pattern: /\bpush\b/i, seconds: 20, label: "push" },
 ];
 
 function detectRunnerType(runsOn: string): RunnerType {
@@ -80,8 +94,9 @@ function estimateStepDuration(stepName: string, uses?: string, run?: string): nu
     }
   }
 
-  // Generic step fallback
-  return 60;
+  // Generic step fallback. Most unrecognised steps are short shell commands:
+  // across measured runs they came in between 0.1s and 2.2s.
+  return 15;
 }
 
 function roundUpToMinute(seconds: number): number {
@@ -594,8 +609,13 @@ export function estimateWorkflow(
 
   const totalSeconds = jobEstimates.reduce((sum, j) => sum + j.estimatedTotalSeconds, 0);
   const costPerRun = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsd, 0);
-  const costPerDay = costPerRun * pushesPerDay;
-  const costPerMonth = costPerDay * 30;
+  // Cost per run is only half the picture. How often the workflow actually
+  // fires comes from its own on: block, so a weekly cron is no longer billed as
+  // if it ran with every push.
+  const triggers = parseTriggers(content);
+  const frequency = estimateRunsPerDay(triggers, pushesPerDay);
+  const costPerDay = costPerRun * frequency.runsPerDay;
+  const costPerMonth = costPerDay * 30.44;
 
   const hints = generateHints(jobEstimates);
 
@@ -607,6 +627,9 @@ export function estimateWorkflow(
     totalEstimatedCostPerRun: costPerRun,
     totalEstimatedCostPerDay: costPerDay,
     totalEstimatedCostPerMonth: costPerMonth,
+    runsPerDay: frequency.runsPerDay,
+    frequencyBasis: frequency.basis,
+    triggers: triggers.names,
     hints,
   };
 }
@@ -621,3 +644,6 @@ export function formatDuration(seconds: number): string {
 
 export { COST_RATES };
 export type { WorkflowEstimate, JobEstimate, StepEstimate, MatrixDimension, RunnerType, CostRates };
+
+// Exported for tests: the loose verb matchers are a known false-positive risk.
+export const estimateStepDurationForTest = estimateStepDuration;

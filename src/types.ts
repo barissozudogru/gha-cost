@@ -33,6 +33,12 @@ export interface WorkflowEstimate {
   totalEstimatedCostPerRun: number;
   totalEstimatedCostPerDay: number;
   totalEstimatedCostPerMonth: number;
+  /** Runs per day derived from the workflow's own triggers. */
+  runsPerDay: number;
+  /** Where runsPerDay came from, e.g. "1/week from schedule". */
+  frequencyBasis: string;
+  /** Trigger names declared in the on: block. */
+  triggers: string[];
   hints: string[];
 }
 

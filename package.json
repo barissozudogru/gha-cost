@@ -14,7 +14,7 @@
   "scripts": {
     "build": "tsc",
     "postbuild": "chmod +x dist/cli.js",
-    "test": "npm run build && node --test dist/*.test.js",
+    "test": "npm run build && node --test dist/index.test.js dist/triggers.test.js",
     "prepublishOnly": "npm run build"
   },
   "files": [
