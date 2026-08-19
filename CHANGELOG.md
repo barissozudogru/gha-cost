@@ -7,6 +7,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.0] - 2026-08-19
+
+### Fixed
+- Run frequency is derived from the workflow's own `on:` block, so scheduled workflows are no longer billed at the push rate.
+- Step duration heuristics recalibrated against measured runs.
+- `deploy`, `publish` and `push` matchers are word-anchored and no longer match step names that merely contain those words.
+
+### Added
+- Trigger and cron frequency tests.
+
 ## [0.3.0] - 2026-03-12
 
 ### Added
