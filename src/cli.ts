@@ -130,11 +130,23 @@ function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): 
     `  Cost per run:          ${colorize(formatCost(estimate.totalEstimatedCostPerRun), GREEN)}`
   );
   console.log(
-    `  Cost per day           ${colorize(formatCost(estimate.totalEstimatedCostPerDay), YELLOW)}  ${dim(`(${pushesPerDay} pushes/day)`)}`
+    `  Triggers:              ${dim(estimate.triggers.join(", ") || "(none detected)")}`
   );
-  console.log(
-    `  Cost per month:        ${colorize(formatCost(estimate.totalEstimatedCostPerMonth), RED)}  ${dim("(30 days)")}`
-  );
+  if (estimate.runsPerDay === 0) {
+    console.log(
+      `  Cost per day           ${dim("not estimated")}  ${dim(`(${estimate.frequencyBasis})`)}`
+    );
+    console.log(
+      `  Cost per month:        ${dim("not estimated")}`
+    );
+  } else {
+    console.log(
+      `  Cost per day           ${colorize(formatCost(estimate.totalEstimatedCostPerDay), YELLOW)}  ${dim(`(${estimate.frequencyBasis})`)}`
+    );
+    console.log(
+      `  Cost per month:        ${colorize(formatCost(estimate.totalEstimatedCostPerMonth), RED)}  ${dim("(30.44 days)")}`
+    );
+  }
   console.log();
 
   if (estimate.hints.length > 0) {
@@ -194,7 +206,9 @@ USAGE
 
 OPTIONS
   --file, -f <path>          Path to a specific workflow YAML file
-  --pushes, -p <n>           Estimated pushes/triggers per day (default: 10)
+  --pushes, -p <n>           Pushes per day, applied only to push and
+                             pull_request triggers (default: 10). Scheduled
+                             workflows derive their rate from their own cron.
   --self-hosted-rate <rate>  Cost per minute (USD) for self-hosted runners (default: 0)
   --json                     Output results as JSON (for CI integration)
   --version, -v              Print version and exit
@@ -299,10 +313,24 @@ async function main(): Promise<void> {
 
     const separator = colorize("=".repeat(60), DIM);
     console.log(separator);
+    const unscheduled = results.filter((r) => r.runsPerDay === 0).length;
     console.log(bold(`Aggregate (${results.length} workflows)`));
     console.log(`  Cost per run:   ${colorize(formatCost(totalPerRun), GREEN)}`);
     console.log(`  Cost per day:   ${colorize(formatCost(totalPerDay), YELLOW)}`);
     console.log(`  Cost per month: ${colorize(formatCost(totalPerMonth), RED)}`);
+    if (unscheduled > 0) {
+      console.log(
+        dim(
+          `  ${unscheduled} workflow(s) run only on manual triggers and are counted at zero.`
+        )
+      );
+    }
+    console.log(
+      dim("  Static estimate from the YAML, not measured. Step durations are")
+    );
+    console.log(
+      dim("  central guesses; a large repository will exceed them.")
+    );
     console.log(separator);
     console.log();
   }

@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { estimateWorkflow, COST_RATES } from "./index.js";
+import { estimateWorkflow, COST_RATES, estimateStepDurationForTest } from "./index.js";
 import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -78,5 +78,34 @@ jobs:
     } finally {
       unlinkSync(tmpFile);
     }
+  });
+});
+
+describe("step duration heuristics", () => {
+  it("does not bill a step named 'Published ...' as a publish action", () => {
+    // /publish/i matched "Published content identity scan", a shell one-liner
+    // that measured 0.1s, and estimated it at a minute.
+    const seconds = estimateStepDurationForTest(
+      "Published content identity scan",
+      undefined,
+      'if [ -z "$FORBIDDEN" ]; then echo ok; fi'
+    );
+    assert.ok(seconds <= 15, `expected a generic step, got ${seconds}s`);
+  });
+
+  it("still recognises a real deploy step", () => {
+    const seconds = estimateStepDurationForTest(
+      "Deploy to Cloudflare Pages",
+      "cloudflare/wrangler-action@v3",
+      undefined
+    );
+    assert.equal(seconds, 45);
+  });
+
+  it("recognises a real publish step", () => {
+    assert.equal(
+      estimateStepDurationForTest("Publish to npm", undefined, "npm publish"),
+      30
+    );
   });
 });
