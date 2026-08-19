@@ -34,8 +34,8 @@ node dist/cli.js --file path/to/workflow.yml
 
 ```
 src/
-  cli.ts       Entry point  -  argument parsing, terminal output, multi-workflow aggregation
-  index.ts     Core logic  -  YAML parser, step heuristics, cost calculation, hint generation
+  cli.ts       Entry point - argument parsing, terminal output, multi-workflow aggregation
+  index.ts     Core logic - YAML parser, step heuristics, cost calculation, hint generation
   types.ts     Shared TypeScript interfaces
 dist/          Compiled output (generated, not committed)
 ```
@@ -52,7 +52,7 @@ Step durations are estimated in `src/index.ts` via the `STEP_DURATION_HEURISTICS
 { pattern: /regex/i, seconds: number, label: string }
 ```
 
-Patterns are matched against the concatenation of `stepName + uses + run`. The first match wins, so order matters  -  place more specific patterns before broader ones.
+Patterns are matched against the concatenation of `stepName + uses + run`. The first match wins, so order matters - place more specific patterns before broader ones.
 
 ### Adding a new CLI flag
 
