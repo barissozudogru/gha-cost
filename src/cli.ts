@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "fs";
 import { resolve, join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { estimateWorkflow, formatDuration } from "./index.js";
+import { estimateWorkflow, COST_RATES, formatDuration } from "./index.js";
 import type { WorkflowEstimate, JobEstimate, CliOptions } from "./types.js";
 
 // Resolve package.json relative to this file so --version works after compilation
@@ -87,12 +87,19 @@ function printJobBreakdown(job: JobEstimate): void {
     const stepLabel = step.uses
       ? dim(step.uses.split("@")[0] ?? step.uses)
       : dim(step.run ? step.run.slice(0, 50).replace(/\n/g, " ") : step.name);
-    const duration = dim(formatDuration(step.estimatedSeconds));
+    // Show the range. A midpoint here would reintroduce the false precision
+    // the range exists to remove.
+    const duration = dim(
+      `${formatDuration(step.estimatedSecondsLow)}-${formatDuration(step.estimatedSecondsHigh)}`
+    );
     console.log(`    ${dim("-")} ${step.name}  ${stepLabel}  ${duration}`);
   }
 
-  const perMatrix = formatDuration(job.estimatedSecondsPerMatrix);
-  const total = formatDuration(job.estimatedTotalSeconds);
+  const perMatrix =
+    `${formatDuration(job.estimatedSecondsLowPerMatrix)} to ${formatDuration(job.estimatedSecondsHighPerMatrix)}`;
+  const total =
+    `${formatDuration(job.estimatedSecondsLowPerMatrix * job.matrixCombinations)}` +
+    ` to ${formatDuration(job.estimatedSecondsHighPerMatrix * job.matrixCombinations)}`;
   const cost = colorize(formatCost(job.estimatedCostUsd), GREEN);
 
   if (job.matrixCombinations > 1) {
@@ -122,12 +129,21 @@ function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): 
   }
 
   console.log(separator);
+  const rate = COST_RATES.ubuntu;
+  const lowCost = (estimate.totalEstimatedSecondsLow / 60) * rate;
+  const highCost = (estimate.totalEstimatedSecondsHigh / 60) * rate;
+
   console.log(`${bold("Summary")}`);
   console.log(
-    `  Total estimated time:  ${bold(formatDuration(estimate.totalEstimatedSeconds))}`
+    `  Estimated time:        ${bold(formatDuration(estimate.totalEstimatedSecondsLow))}` +
+    ` to ${bold(formatDuration(estimate.totalEstimatedSecondsHigh))}`
   );
   console.log(
-    `  Cost per run:          ${colorize(formatCost(estimate.totalEstimatedCostPerRun), GREEN)}`
+    `  Cost per run:          ${colorize(formatCost(lowCost), GREEN)} to ${colorize(formatCost(highCost), GREEN)}`
+  );
+  console.log(
+    `  Dependency cache:      ${estimate.cachingDetected ? colorize("declared", GREEN) : dim("not declared")}` +
+    dim(estimate.cachingDetected ? "  (estimate weighted toward the fast end)" : "")
   );
   console.log(
     `  Triggers:              ${dim(estimate.triggers.join(", ") || "(none detected)")}`
@@ -140,11 +156,15 @@ function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): 
       `  Cost per month:        ${dim("not estimated")}`
     );
   } else {
+    const dayLow = lowCost * estimate.runsPerDay;
+    const dayHigh = highCost * estimate.runsPerDay;
     console.log(
-      `  Cost per day           ${colorize(formatCost(estimate.totalEstimatedCostPerDay), YELLOW)}  ${dim(`(${estimate.frequencyBasis})`)}`
+      `  Cost per day           ${colorize(formatCost(dayLow), YELLOW)} to ${colorize(formatCost(dayHigh), YELLOW)}` +
+      `  ${dim(`(${estimate.frequencyBasis})`)}`
     );
     console.log(
-      `  Cost per month:        ${colorize(formatCost(estimate.totalEstimatedCostPerMonth), RED)}  ${dim("(30.44 days)")}`
+      `  Cost per month:        ${colorize(formatCost(dayLow * 30.44), RED)} to ${colorize(formatCost(dayHigh * 30.44), RED)}` +
+      `  ${dim("(30.44 days)")}`
     );
   }
   console.log();
@@ -307,17 +327,23 @@ async function main(): Promise<void> {
 
   // Multi-workflow aggregate
   if (results.length > 1) {
-    const totalPerRun = results.reduce((s, r) => s + r.totalEstimatedCostPerRun, 0);
-    const totalPerDay = results.reduce((s, r) => s + r.totalEstimatedCostPerDay, 0);
-    const totalPerMonth = results.reduce((s, r) => s + r.totalEstimatedCostPerMonth, 0);
+    // Ranges here too, so the aggregate speaks the same language as the
+    // per-workflow reports rather than reintroducing a point estimate.
+    const rate = COST_RATES.ubuntu;
+    const runLow = results.reduce((s, r) => s + (r.totalEstimatedSecondsLow / 60) * rate, 0);
+    const runHigh = results.reduce((s, r) => s + (r.totalEstimatedSecondsHigh / 60) * rate, 0);
+    const dayLow = results.reduce(
+      (s, r) => s + (r.totalEstimatedSecondsLow / 60) * rate * r.runsPerDay, 0);
+    const dayHigh = results.reduce(
+      (s, r) => s + (r.totalEstimatedSecondsHigh / 60) * rate * r.runsPerDay, 0);
 
     const separator = colorize("=".repeat(60), DIM);
     console.log(separator);
     const unscheduled = results.filter((r) => r.runsPerDay === 0).length;
     console.log(bold(`Aggregate (${results.length} workflows)`));
-    console.log(`  Cost per run:   ${colorize(formatCost(totalPerRun), GREEN)}`);
-    console.log(`  Cost per day:   ${colorize(formatCost(totalPerDay), YELLOW)}`);
-    console.log(`  Cost per month: ${colorize(formatCost(totalPerMonth), RED)}`);
+    console.log(`  Cost per run:   ${colorize(formatCost(runLow), GREEN)} to ${colorize(formatCost(runHigh), GREEN)}`);
+    console.log(`  Cost per day:   ${colorize(formatCost(dayLow), YELLOW)} to ${colorize(formatCost(dayHigh), YELLOW)}`);
+    console.log(`  Cost per month: ${colorize(formatCost(dayLow * 30.44), RED)} to ${colorize(formatCost(dayHigh * 30.44), RED)}`);
     if (unscheduled > 0) {
       console.log(
         dim(
@@ -326,10 +352,13 @@ async function main(): Promise<void> {
       );
     }
     console.log(
-      dim("  Static estimate from the YAML, not measured. Step durations are")
+      dim("  Ranges, not point estimates. Measured step durations are bimodal:")
     );
     console.log(
-      dim("  central guesses; a large repository will exceed them.")
+      dim("  a warm cache and a small project sit near the low end, a cold cache")
+    );
+    console.log(
+      dim("  or a large one near the high end. Read from the YAML, not measured.")
     );
     console.log(separator);
     console.log();

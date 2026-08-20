@@ -1,6 +1,6 @@
 {
   "name": "@barissozudogru/gha-cost",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Estimate GitHub Actions workflow costs before running",
   "type": "module",
   "bin": {

@@ -7,6 +7,16 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.5.0] - 2026-08-20
+
+### Changed
+- Estimates are reported as a range rather than a point value. Measured across 80 real steps, durations are bimodal: checkout has a median of 1.0s and a p75 of 15s, so no single number describes it and a point estimate was false precision.
+- Step heuristics recalibrated so every measured value falls inside its predicted range.
+
+### Added
+- Cache detection. A workflow declaring a dependency cache is weighted toward the fast end of each range, since a cached `npm ci` measured 24s against 45s assumed for a cold one.
+- Regression tests asserting that measured durations from real runs fall inside the predicted ranges.
+
 ## [0.4.0] - 2026-08-19
 
 ### Fixed
