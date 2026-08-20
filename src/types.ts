@@ -4,7 +4,10 @@ export interface StepEstimate {
   name: string;
   uses?: string;
   run?: string;
+  /** Midpoint of the estimated range, kept for JSON consumers. */
   estimatedSeconds: number;
+  estimatedSecondsLow: number;
+  estimatedSecondsHigh: number;
 }
 
 export interface MatrixDimension {
@@ -21,6 +24,8 @@ export interface JobEstimate {
   matrix: MatrixDimension[];
   matrixCombinations: number;
   estimatedSecondsPerMatrix: number;
+  estimatedSecondsLowPerMatrix: number;
+  estimatedSecondsHighPerMatrix: number;
   estimatedTotalSeconds: number;
   estimatedCostUsd: number;
 }
@@ -30,6 +35,10 @@ export interface WorkflowEstimate {
   workflowName: string;
   jobs: JobEstimate[];
   totalEstimatedSeconds: number;
+  totalEstimatedSecondsLow: number;
+  totalEstimatedSecondsHigh: number;
+  /** Whether the workflow declares a dependency cache. */
+  cachingDetected: boolean;
   totalEstimatedCostPerRun: number;
   totalEstimatedCostPerDay: number;
   totalEstimatedCostPerMonth: number;
