@@ -132,6 +132,12 @@ function detectRunnerType(runsOn: string): RunnerType {
   return "unknown";
 }
 
+function rateFor(runner: RunnerType, selfHostedRate?: number): number {
+  return runner === "unknown"
+    ? (selfHostedRate ?? COST_RATES.unknown)
+    : COST_RATES[runner];
+}
+
 function roundUpToMinute(seconds: number): number {
   return Math.ceil(seconds / BILLING_INCREMENT_SECONDS) * BILLING_INCREMENT_SECONDS;
 }
@@ -143,11 +149,74 @@ function calculateJobCost(
 ): number {
   const billedSeconds = roundUpToMinute(seconds);
   const minutes = billedSeconds / 60;
-  const rate =
-    runner === "unknown"
-      ? (selfHostedRate ?? COST_RATES.unknown)
-      : COST_RATES[runner];
-  return minutes * rate;
+  return minutes * rateFor(runner, selfHostedRate);
+}
+
+/**
+ * Substitute matrix values into a `runs-on: ${{ matrix.os }}` label. Such a
+ * job runs once per combination, each on its own runner, so the label resolves
+ * to one concrete runner per combination. Returns null when the label is
+ * already concrete or names a key the matrix does not define: there is nothing
+ * to substitute then, and the job keeps a single runner type.
+ */
+function resolveRunsOnLabels(
+  runsOn: string,
+  matrix: MatrixDimension[]
+): string[] | null {
+  const refs = [...runsOn.matchAll(/\$\{\{\s*matrix\.([\w-]+)\s*\}\}/g)].map(
+    (m) => m[1]
+  );
+  if (refs.length === 0) return null;
+  const valuesByKey = new Map(matrix.map((d) => [d.key, d.values] as const));
+  if (refs.some((key) => !valuesByKey.has(key))) return null;
+
+  let combos: Array<Map<string, string>> = [new Map()];
+  for (const dim of matrix) {
+    combos = combos.flatMap((combo) =>
+      dim.values.map((value) => new Map(combo).set(dim.key, value))
+    );
+  }
+
+  return combos.map((combo) =>
+    runsOn.replace(/\$\{\{\s*matrix\.([\w-]+)\s*\}\}/g, (_, key: string) =>
+      combo.get(key) ?? ""
+    )
+  );
+}
+
+/**
+ * The runner type reported for a matrix that spans several of them. There is
+ * no single honest type, but the priciest one present dominates the high cost
+ * bound and is what the expensive-runner hints exist to flag.
+ */
+function priciestRunnerType(
+  types: RunnerType[],
+  selfHostedRate?: number
+): RunnerType {
+  return types.reduce((best, t) =>
+    rateFor(t, selfHostedRate) > rateFor(best, selfHostedRate) ? t : best
+  );
+}
+
+function calculateMatrixJobCost(
+  secondsPerCombination: number,
+  matrixRunnerTypes: RunnerType[] | null,
+  runner: RunnerType,
+  matrixCombinations: number,
+  selfHostedRate?: number
+): number {
+  if (matrixRunnerTypes) {
+    // Every combination bills its own rounded minutes on its own runner, the
+    // same path a single-runner job takes.
+    return matrixRunnerTypes.reduce(
+      (sum, t) => sum + calculateJobCost(secondsPerCombination, t, selfHostedRate),
+      0
+    );
+  }
+  return (
+    calculateJobCost(secondsPerCombination, runner, selfHostedRate) *
+    matrixCombinations
+  );
 }
 
 // Minimal YAML parser for GitHub Actions workflow structure.
@@ -612,7 +681,17 @@ export function estimateWorkflow(
   const jobEstimates: JobEstimate[] = [];
 
   for (const rawJob of raw.jobs) {
-    const runner = detectRunnerType(rawJob.runsOn);
+    // A `runs-on: ${{ matrix.os }}` label means each combination lands on its
+    // own runner, so the runner type has to be resolved per combination before
+    // any rate is applied. Reading the literal expression instead billed the
+    // whole matrix at the unknown rate, $0 by default, and ignored macOS and
+    // Windows combinations entirely.
+    const matrixRunnerTypes = resolveRunsOnLabels(rawJob.runsOn, rawJob.matrix)?.map(
+      detectRunnerType
+    ) ?? null;
+    const runner = matrixRunnerTypes
+      ? priciestRunnerType(matrixRunnerTypes, selfHostedRate)
+      : detectRunnerType(rawJob.runsOn);
 
     const steps: StepEstimate[] = rawJob.steps.map((s) => {
       const r = estimateStepDuration(s.name, s.uses, s.run, cached);
@@ -641,12 +720,15 @@ export function estimateWorkflow(
     // workflow seconds to minutes would re-bill every job at the ubuntu rate
     // without per-job rounding, and the summary would disagree with the job
     // rows above it.
-    const costPerRun =
-      calculateJobCost(totalSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
-    const costPerRunLow =
-      calculateJobCost(lowSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
-    const costPerRunHigh =
-      calculateJobCost(highSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
+    const costPerRun = calculateMatrixJobCost(
+      totalSecondsPerMatrix, matrixRunnerTypes, runner, matrixCombinations, selfHostedRate
+    );
+    const costPerRunLow = calculateMatrixJobCost(
+      lowSecondsPerMatrix, matrixRunnerTypes, runner, matrixCombinations, selfHostedRate
+    );
+    const costPerRunHigh = calculateMatrixJobCost(
+      highSecondsPerMatrix, matrixRunnerTypes, runner, matrixCombinations, selfHostedRate
+    );
 
     jobEstimates.push({
       id: rawJob.id,

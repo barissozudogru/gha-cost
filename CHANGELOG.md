@@ -10,6 +10,7 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- A `runs-on: ${{ matrix.os }}` label is resolved per matrix combination and each combination is billed on the runner it lands on. The literal expression was previously classified as an unknown runner, so a matrix of ubuntu, macOS and Windows billed all three at the self-hosted rate, $0 by default, and macOS and Windows costs were ignored entirely. A matrix spanning several runner classes now reports its priciest class as the job's runner, since that is what dominates the high cost bound. Expressions naming a key the matrix does not define still fall back to the self-hosted rate rather than guessing a platform.
 - Summary and aggregate cost bounds are billed like the job rows: each job's low and high durations round up to whole minutes on that job's own runner rate. They were previously raw workflow seconds times the ubuntu rate, which ignored per-job rounding and billed macOS and Windows jobs ten and two times low respectively. The bounds are also exposed as `totalEstimatedCostPerRunLow` and `totalEstimatedCostPerRunHigh` on the JSON output.
 
 ## [0.5.0] - 2026-08-20
