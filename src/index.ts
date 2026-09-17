@@ -636,8 +636,17 @@ export function estimateWorkflow(
 
     const matrixCombinations = computeMatrixCombinations(rawJob.matrix);
     const totalSeconds = totalSecondsPerMatrix * matrixCombinations;
+    // The cost bounds take the same billing path as the midpoint: rounding to
+    // whole minutes and the runner's own rate, applied per job. Converting raw
+    // workflow seconds to minutes would re-bill every job at the ubuntu rate
+    // without per-job rounding, and the summary would disagree with the job
+    // rows above it.
     const costPerRun =
       calculateJobCost(totalSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
+    const costPerRunLow =
+      calculateJobCost(lowSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
+    const costPerRunHigh =
+      calculateJobCost(highSecondsPerMatrix, runner, selfHostedRate) * matrixCombinations;
 
     jobEstimates.push({
       id: rawJob.id,
@@ -652,6 +661,8 @@ export function estimateWorkflow(
       estimatedSecondsHighPerMatrix: highSecondsPerMatrix,
       estimatedTotalSeconds: totalSeconds,
       estimatedCostUsd: costPerRun,
+      estimatedCostUsdLow: costPerRunLow,
+      estimatedCostUsdHigh: costPerRunHigh,
     });
   }
 
@@ -661,6 +672,8 @@ export function estimateWorkflow(
   const totalSecondsHigh = jobEstimates.reduce(
     (sum, j) => sum + j.estimatedSecondsHighPerMatrix * j.matrixCombinations, 0);
   const costPerRun = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsd, 0);
+  const costPerRunLow = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsdLow, 0);
+  const costPerRunHigh = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsdHigh, 0);
   // Cost per run is only half the picture. How often the workflow actually
   // fires comes from its own on: block, so a weekly cron is no longer billed as
   // if it ran with every push.
@@ -680,6 +693,8 @@ export function estimateWorkflow(
     totalEstimatedSecondsHigh: totalSecondsHigh,
     cachingDetected: cached,
     totalEstimatedCostPerRun: costPerRun,
+    totalEstimatedCostPerRunLow: costPerRunLow,
+    totalEstimatedCostPerRunHigh: costPerRunHigh,
     totalEstimatedCostPerDay: costPerDay,
     totalEstimatedCostPerMonth: costPerMonth,
     runsPerDay: frequency.runsPerDay,

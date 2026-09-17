@@ -28,6 +28,9 @@ export interface JobEstimate {
   estimatedSecondsHighPerMatrix: number;
   estimatedTotalSeconds: number;
   estimatedCostUsd: number;
+  /** Cost of the low and high duration bounds, each matrix combination billed on its own rounded minutes. */
+  estimatedCostUsdLow: number;
+  estimatedCostUsdHigh: number;
 }
 
 export interface WorkflowEstimate {
@@ -40,6 +43,9 @@ export interface WorkflowEstimate {
   /** Whether the workflow declares a dependency cache. */
   cachingDetected: boolean;
   totalEstimatedCostPerRun: number;
+  /** Cost of the low and high duration bounds, billed per job with minute rounding and runner rates. */
+  totalEstimatedCostPerRunLow: number;
+  totalEstimatedCostPerRunHigh: number;
   totalEstimatedCostPerDay: number;
   totalEstimatedCostPerMonth: number;
   /** Runs per day derived from the workflow's own triggers. */
