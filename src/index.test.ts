@@ -157,6 +157,143 @@ jobs:
   });
 });
 
+describe("matrix runner resolution", () => {
+  const MATRIX_STEPS_YAML = `
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`;
+
+  function writeTempYaml(name: string, yaml: string): string {
+    const tmpFile = join(tmpdir(), `test-workflow-${name}-${Date.now()}.yml`);
+    writeFileSync(tmpFile, yaml, "utf-8");
+    return tmpFile;
+  }
+
+  it("bills each matrix combination on the runner it resolves to", () => {
+    // checkout spans 1-25s (midpoint 13s) and npm ci 15-120s (midpoint 68s),
+    // so every combination bills 2 rounded minutes. Before the fix the literal
+    // \${{ matrix.os }} label was classified as unknown and all three
+    // combinations cost $0, ignoring the macOS and Windows runners entirely.
+    const tmpFile = writeTempYaml(
+      "matrix-os",
+      `
+name: Matrix OS Test
+jobs:
+  job1:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 3);
+      assert.equal(job.runner, "macos");
+      assert.equal(job.runnerLabel, "${{ matrix.os }}");
+      // 2 minutes each at $0.008, $0.08 and $0.016. Bounds: 16s is one
+      // rounded minute, 145s is three.
+      assert.equal(job.estimatedCostUsd, 2 * (0.008 + 0.08 + 0.016));
+      assert.equal(job.estimatedCostUsdLow, 1 * (0.008 + 0.08 + 0.016));
+      assert.equal(job.estimatedCostUsdHigh, 3 * (0.008 + 0.08 + 0.016));
+      assert.equal(estimate.totalEstimatedCostPerRun, 2 * (0.008 + 0.08 + 0.016));
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("resolves a matrix of one platform to that platform's rate", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-ubuntu",
+      `
+name: Matrix Ubuntu Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.runner, "ubuntu");
+      // Two combinations, each 2 rounded minutes on ubuntu.
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("resolves every dimension of a multi-dimensional matrix", () => {
+    // os is written as a block list and node as an inline one, so both parser
+    // paths feed the resolution. Four combinations: ubuntu and macos, twice
+    // each, each billing 2 rounded minutes.
+    const tmpFile = writeTempYaml(
+      "matrix-multi",
+      `
+name: Matrix Multi Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+        node: [18, 20]
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 4);
+      assert.equal(job.runner, "macos");
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008 + 2 * 2 * 0.08);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("keeps the self-hosted rate for expressions it cannot resolve", () => {
+    // The matrix has no runner dimension, so the label cannot be substituted
+    // and stays on the unknown rate rather than guessing a platform.
+    const tmpFile = writeTempYaml(
+      "matrix-unresolved",
+      `
+name: Matrix Unresolved Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        node: [18, 20]
+    runs-on: \${{ matrix.runner }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10, 0.005);
+      const job = estimate.jobs[0];
+      assert.equal(job.runner, "unknown");
+      // Two combinations, each 2 rounded minutes at the custom rate.
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.005);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+});
+
 describe("step duration heuristics", () => {
   it("does not bill a step named 'Published ...' as a publish action", () => {
     // /publish/i matched "Published content identity scan", a shell one-liner
