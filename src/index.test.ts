@@ -86,6 +86,77 @@ jobs:
   });
 });
 
+describe("summary cost bounds", () => {
+  it("bills the macOS bound at the macOS rate, matching the job row", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-bounds-mac-${Date.now()}.yml`);
+    const yaml = `
+name: Mac Bounds Test
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - name: Do thing
+        run: ./script.sh
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      // A generic step spans 0s to 60s. The high bound is one rounded minute
+      // at $0.08, not 60/60 minutes at the ubuntu rate the summary once
+      // applied to raw seconds.
+      assert.equal(estimate.jobs[0].estimatedCostUsdHigh, 0.08);
+      assert.equal(estimate.totalEstimatedCostPerRunLow, 0);
+      assert.equal(estimate.totalEstimatedCostPerRunHigh, 0.08);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("rounds each job's bounds up to whole minutes on that job's runner rate", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-bounds-mixed-${Date.now()}.yml`);
+    const yaml = `
+name: Mixed Bounds Test
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      // Checkout spans 1-25s and npm ci 15-120s, so the ubuntu job spans 16s
+      // to 145s: one and three rounded minutes. The windows job spans 1-25s,
+      // one rounded minute at twice the ubuntu rate. Summing the job rows has
+      // to land inside the workflow bounds.
+      const linux = estimate.jobs.find((j) => j.id === "linux");
+      const windows = estimate.jobs.find((j) => j.id === "windows");
+      assert.ok(linux && windows);
+      assert.equal(linux.estimatedCostUsdLow, 1 * 0.008);
+      assert.equal(linux.estimatedCostUsdHigh, 3 * 0.008);
+      assert.equal(windows.estimatedCostUsdLow, 1 * 0.016);
+      assert.equal(windows.estimatedCostUsdHigh, 1 * 0.016);
+      assert.equal(estimate.totalEstimatedCostPerRunLow, 1 * 0.008 + 1 * 0.016);
+      assert.equal(estimate.totalEstimatedCostPerRunHigh, 3 * 0.008 + 1 * 0.016);
+      assert.ok(
+        estimate.totalEstimatedCostPerRunLow <= estimate.totalEstimatedCostPerRun &&
+          estimate.totalEstimatedCostPerRun <= estimate.totalEstimatedCostPerRunHigh,
+        "the midpoint cost must sit inside the bounds"
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+});
+
 describe("step duration heuristics", () => {
   it("does not bill a step named 'Published ...' as a publish action", () => {
     // /publish/i matched "Published content identity scan", a shell one-liner

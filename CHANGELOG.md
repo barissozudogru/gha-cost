@@ -7,6 +7,11 @@ Versions follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Summary and aggregate cost bounds are billed like the job rows: each job's low and high durations round up to whole minutes on that job's own runner rate. They were previously raw workflow seconds times the ubuntu rate, which ignored per-job rounding and billed macOS and Windows jobs ten and two times low respectively. The bounds are also exposed as `totalEstimatedCostPerRunLow` and `totalEstimatedCostPerRunHigh` on the JSON output.
+
 ## [0.5.0] - 2026-08-20
 
 ### Changed

@@ -3,7 +3,7 @@
 import { readdirSync, readFileSync } from "fs";
 import { resolve, join, dirname } from "path";
 import { fileURLToPath } from "url";
-import { estimateWorkflow, COST_RATES, formatDuration } from "./index.js";
+import { estimateWorkflow, formatDuration } from "./index.js";
 import type { WorkflowEstimate, JobEstimate, CliOptions } from "./types.js";
 
 // Resolve package.json relative to this file so --version works after compilation
@@ -129,9 +129,10 @@ function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): 
   }
 
   console.log(separator);
-  const rate = COST_RATES.ubuntu;
-  const lowCost = (estimate.totalEstimatedSecondsLow / 60) * rate;
-  const highCost = (estimate.totalEstimatedSecondsHigh / 60) * rate;
+  // Billed per job, so these agree with the job rows above: each job rounds up
+  // to whole minutes on its own runner rate.
+  const lowCost = estimate.totalEstimatedCostPerRunLow;
+  const highCost = estimate.totalEstimatedCostPerRunHigh;
 
   console.log(`${bold("Summary")}`);
   console.log(
@@ -329,13 +330,12 @@ async function main(): Promise<void> {
   if (results.length > 1) {
     // Ranges here too, so the aggregate speaks the same language as the
     // per-workflow reports rather than reintroducing a point estimate.
-    const rate = COST_RATES.ubuntu;
-    const runLow = results.reduce((s, r) => s + (r.totalEstimatedSecondsLow / 60) * rate, 0);
-    const runHigh = results.reduce((s, r) => s + (r.totalEstimatedSecondsHigh / 60) * rate, 0);
+    const runLow = results.reduce((s, r) => s + r.totalEstimatedCostPerRunLow, 0);
+    const runHigh = results.reduce((s, r) => s + r.totalEstimatedCostPerRunHigh, 0);
     const dayLow = results.reduce(
-      (s, r) => s + (r.totalEstimatedSecondsLow / 60) * rate * r.runsPerDay, 0);
+      (s, r) => s + r.totalEstimatedCostPerRunLow * r.runsPerDay, 0);
     const dayHigh = results.reduce(
-      (s, r) => s + (r.totalEstimatedSecondsHigh / 60) * rate * r.runsPerDay, 0);
+      (s, r) => s + r.totalEstimatedCostPerRunHigh * r.runsPerDay, 0);
 
     const separator = colorize("=".repeat(60), DIM);
     console.log(separator);
