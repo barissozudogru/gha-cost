@@ -159,6 +159,108 @@ function calculateJobCost(
  * already concrete or names a key the matrix does not define: there is nothing
  * to substitute then, and the job keeps a single runner type.
  */
+function parseMatrixValueObject(
+  entry: string,
+  dimensionKeys: string[]
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  const parts = entry.split(",").map((p) => p.trim());
+  for (let idx = 0; idx < parts.length; idx++) {
+    const part = parts[idx];
+    const colonIdx = part.indexOf(":");
+    if (colonIdx !== -1) {
+      const k = part.slice(0, colonIdx).trim();
+      const v = part.slice(colonIdx + 1).trim().replace(/^['"]|['"]$/g, "");
+      if (k) result[k] = v;
+    } else if (idx < dimensionKeys.length) {
+      const v = part.replace(/^['"]|['"]$/g, "");
+      result[dimensionKeys[idx]] = v;
+    }
+  }
+  return result;
+}
+
+function buildMatrixCombinations(
+  matrix: MatrixDimension[]
+): Array<Map<string, string>> {
+  const dimensions = matrix.filter(
+    (dim) => dim.key !== "include" && dim.key !== "exclude"
+  );
+  const dimensionKeys = dimensions.map((d) => d.key);
+  const includeDim = matrix.find((dim) => dim.key === "include");
+  const excludeDim = matrix.find((dim) => dim.key === "exclude");
+
+  let combos: Array<Map<string, string>> = [];
+  if (dimensions.length > 0) {
+    combos = [new Map()];
+    for (const dim of dimensions) {
+      combos = combos.flatMap((combo) =>
+        dim.values.map((value) => new Map(combo).set(dim.key, value))
+      );
+    }
+  }
+
+  if (excludeDim && combos.length > 0) {
+    const excludeRules = excludeDim.values.map((v) =>
+      parseMatrixValueObject(v, dimensionKeys)
+    );
+    combos = combos.filter((combo) => {
+      for (const rule of excludeRules) {
+        const keys = Object.keys(rule);
+        if (keys.length === 0) continue;
+        const matchesAll = keys.every(
+          (k) => combo.has(k) && combo.get(k) === rule[k]
+        );
+        if (matchesAll) return false;
+      }
+      return true;
+    });
+  }
+
+  if (includeDim) {
+    const includeRules = includeDim.values.map((v) =>
+      parseMatrixValueObject(v, dimensionKeys)
+    );
+    for (const rule of includeRules) {
+      const keys = Object.keys(rule);
+      if (keys.length === 0) continue;
+
+      if (combos.length === 0) {
+        combos.push(new Map(Object.entries(rule)));
+        continue;
+      }
+
+      const matching = combos.filter((combo) => {
+        for (const [k, v] of Object.entries(rule)) {
+          if (combo.has(k) && combo.get(k) !== v) {
+            return false;
+          }
+        }
+        return true;
+      });
+
+      if (matching.length > 0) {
+        for (const combo of matching) {
+          for (const [k, v] of Object.entries(rule)) {
+            combo.set(k, v);
+          }
+        }
+      } else {
+        combos.push(new Map(Object.entries(rule)));
+      }
+    }
+  }
+
+  return combos;
+}
+
+/**
+ * Substitute matrix values into a `runs-on: ${{ matrix.os }}` label. Such a
+ * job runs once per combination, each on its own runner, so the label resolves
+ * to one concrete runner per combination. Returns null when the label is
+ * already concrete or names a key the matrix does not define: there is nothing
+ * to substitute then, and the job keeps a single runner type.
+ */
 function resolveRunsOnLabels(
   runsOn: string,
   matrix: MatrixDimension[]
@@ -167,14 +269,10 @@ function resolveRunsOnLabels(
     (m) => m[1]
   );
   if (refs.length === 0) return null;
-  const valuesByKey = new Map(matrix.map((d) => [d.key, d.values] as const));
-  if (refs.some((key) => !valuesByKey.has(key))) return null;
-
-  let combos: Array<Map<string, string>> = [new Map()];
-  for (const dim of matrix) {
-    combos = combos.flatMap((combo) =>
-      dim.values.map((value) => new Map(combo).set(dim.key, value))
-    );
+  const combos = buildMatrixCombinations(matrix);
+  if (combos.length === 0) return null;
+  for (const combo of combos) {
+    if (refs.some((key) => !combo.has(key))) return null;
   }
 
   return combos.map((combo) =>
@@ -282,10 +380,107 @@ function parseMatrixValues(lines: string[], startIndex: number, indent: number):
 }
 
 function parseInlineArray(value: string): string[] {
-  // Parse [a, b, c] or [1, 2, 3]
+  // Parse [a, b, c] or [1, 2, 3] or [{ os: windows, node: 20 }]
   const match = value.match(/^\[(.+)\]$/);
   if (!match) return [];
-  return match[1].split(",").map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
+  const inner = match[1];
+  if (inner.includes("{")) {
+    const objects = [...inner.matchAll(/\{([^}]+)\}/g)].map((m) => m[1].trim());
+    if (objects.length > 0) {
+      return objects.map((obj) =>
+        obj
+          .split(",")
+          .map((pair) => {
+            const colonIdx = pair.indexOf(":");
+            if (colonIdx !== -1) {
+              const k = pair.slice(0, colonIdx).trim();
+              const v = stripInlineComment(pair.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+              return `${k}: ${v}`;
+            }
+            return pair.trim();
+          })
+          .join(", ")
+      );
+    }
+  }
+  return inner.split(",").map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
+}
+
+function parseMatrixIncludeExclude(
+  lines: string[],
+  startIndex: number,
+  minIndent: number
+): { values: string[]; nextIndex: number } {
+  const values: string[] = [];
+  let i = startIndex;
+  let currentItem: Record<string, string> | null = null;
+  let itemIndent = -1;
+
+  function flushCurrent() {
+    if (currentItem && Object.keys(currentItem).length > 0) {
+      const formatted = Object.entries(currentItem)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(", ");
+      values.push(formatted);
+    }
+    currentItem = null;
+  }
+
+  while (i < lines.length) {
+    const rawLine = expandTabs(lines[i]);
+    const trimmed = rawLine.trim();
+    if (trimmed === "" || trimmed.startsWith("#")) {
+      i++;
+      continue;
+    }
+    const lineIndent = getIndent(rawLine);
+    if (lineIndent < minIndent) break;
+
+    if (trimmed.startsWith("- ")) {
+      flushCurrent();
+      itemIndent = lineIndent;
+      currentItem = {};
+      const afterDash = stripInlineComment(trimmed.slice(2).trim());
+      if (afterDash.startsWith("{") && afterDash.endsWith("}")) {
+        const inner = afterDash.slice(1, -1);
+        for (const pair of inner.split(",")) {
+          const colonIdx = pair.indexOf(":");
+          if (colonIdx !== -1) {
+            const k = pair.slice(0, colonIdx).trim();
+            const v = stripInlineComment(pair.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+            if (k) currentItem[k] = v;
+          }
+        }
+      } else {
+        const colonIdx = afterDash.indexOf(":");
+        if (colonIdx !== -1) {
+          const k = afterDash.slice(0, colonIdx).trim();
+          const v = stripInlineComment(afterDash.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+          if (k) currentItem[k] = v;
+        } else if (afterDash !== "") {
+          currentItem["value"] = afterDash.replace(/^['"]|['"]$/g, "");
+        }
+      }
+      i++;
+      continue;
+    }
+
+    if (currentItem && itemIndent !== -1 && lineIndent > itemIndent) {
+      const colonIdx = trimmed.indexOf(":");
+      if (colonIdx !== -1) {
+        const k = trimmed.slice(0, colonIdx).trim();
+        const v = stripInlineComment(trimmed.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+        if (k) currentItem[k] = v;
+      }
+      i++;
+      continue;
+    }
+
+    break;
+  }
+
+  flushCurrent();
+  return { values, nextIndex: i };
 }
 
 /**
@@ -464,7 +659,20 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 // Matrix key: (block list)
                 const blockMatch = matLine.trimStart().match(/^([\w-]+):\s*$/);
                 if (blockMatch && getIndent(matLine) === matrixKeyIndent) {
+                  const key = blockMatch[1];
                   i++;
+                  if (key === "include" || key === "exclude") {
+                    const parsed = parseMatrixIncludeExclude(
+                      lines,
+                      i,
+                      matrixKeyIndent + 1
+                    );
+                    if (parsed.values.length > 0) {
+                      job.matrix.push({ key, values: parsed.values });
+                    }
+                    i = parsed.nextIndex;
+                    continue;
+                  }
                   const values = parseMatrixValues(lines, i, matrixValueIndent);
                   // Advance i past the list items
                   while (i < lines.length) {
@@ -481,7 +689,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     i++;
                   }
                   if (values.length > 0) {
-                    job.matrix.push({ key: blockMatch[1], values });
+                    job.matrix.push({ key, values });
                   }
                   continue;
                 }
@@ -602,9 +810,18 @@ function parseWorkflowYaml(content: string): RawWorkflow {
   return workflow;
 }
 
+/**
+ * Compute the total number of matrix combinations.
+ *
+ * In GitHub Actions, include and exclude blocks adjust combinations rather
+ * than defining cartesian dimensions. Base dimensions expand first, exclusions
+ * prune matching combinations, and inclusions add new combinations or merge
+ * properties.
+ */
 function computeMatrixCombinations(matrix: MatrixDimension[]): number {
   if (matrix.length === 0) return 1;
-  return matrix.reduce((acc, dim) => acc * dim.values.length, 1);
+  const combos = buildMatrixCombinations(matrix);
+  return Math.max(1, combos.length);
 }
 
 function generateHints(jobs: JobEstimate[]): string[] {
@@ -802,3 +1019,4 @@ export const estimateStepDurationForTest = estimateStepDuration;
 
 /** Exported for tests. */
 export const detectsCachingForTest = detectsCaching;
+export const computeMatrixCombinationsForTest = computeMatrixCombinations;

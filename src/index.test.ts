@@ -5,6 +5,7 @@ import {
   COST_RATES,
   estimateStepDurationForTest,
   detectsCachingForTest,
+  computeMatrixCombinationsForTest,
 } from "./index.js";
 import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
@@ -291,6 +292,340 @@ ${MATRIX_STEPS_YAML}
     } finally {
       unlinkSync(tmpFile);
     }
+  });
+
+  it("bills each matrix combination on the runner it resolves to with include and exclude", () => {
+    // 2 os * 2 node = 4 combinations.
+    // Exclude 1 (macos-latest, 18).
+    // Include 1 windows (windows-latest, 20) and 1 macos (macos-latest, 22).
+    // Final combinations:
+    // - ubuntu-latest, 18 (ubuntu)
+    // - ubuntu-latest, 20 (ubuntu)
+    // - macos-latest, 20 (macos)
+    // - windows-latest, 20 (windows)
+    // - macos-latest, 22 (macos)
+    // Total 5 combinations: 2 ubuntu ($0.008), 2 macos ($0.080), 1 windows ($0.016).
+    // 2 billed minutes per combination:
+    // (2 * 2 * 0.008) + (2 * 2 * 0.080) + (1 * 2 * 0.016) = 0.032 + 0.320 + 0.032 = 0.384.
+    const tmpFile = writeTempYaml(
+      "matrix-runner-include-exclude",
+      `
+name: Matrix Runner Include Exclude Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        exclude:
+          - os: macos-latest
+            node: 18
+        include:
+          - os: windows-latest
+            node: 20
+          - os: macos-latest
+            node: 22
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 5);
+      assert.equal(job.runner, "macos");
+      assert.equal(
+        job.estimatedCostUsd,
+        2 * 2 * 0.008 + 2 * 2 * 0.08 + 1 * 2 * 0.016
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+});
+
+describe("matrix combinations with include and exclude", () => {
+  function writeTempYaml(name: string, yaml: string): string {
+    const tmpFile = join(tmpdir(), `test-workflow-${name}-${Date.now()}.yml`);
+    writeFileSync(tmpFile, yaml, "utf-8");
+    return tmpFile;
+  }
+
+  it("adds include entries to combination count instead of multiplying", () => {
+    // 2 os values * 2 node values = 4 base combinations.
+    // include adds 2 combinations for 6 total jobs.
+    // Before the fix, the 2 include items doubled the combinations to 8.
+    const tmpFile = writeTempYaml(
+      "matrix-include",
+      `
+name: Matrix Include Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        include:
+          - os: windows-latest
+            node: 20
+          - os: macos-latest
+            node: 22
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 6);
+      // Checkout (1-25s) and npm ci (15-120s) sum to 16-145s (midpoint 81s),
+      // which rounds up to 2 billed minutes per combination.
+      // 6 combinations * 2 minutes * $0.008 (ubuntu) = $0.096.
+      assert.equal(job.estimatedCostUsd, 6 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("subtracts exclude entries from combination count", () => {
+    // 2 os * 2 node = 4 combinations, minus 1 exclude = 3 jobs.
+    const tmpFile = writeTempYaml(
+      "matrix-exclude",
+      `
+name: Matrix Exclude Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        exclude:
+          - os: macos-latest
+            node: 18
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 3);
+      assert.equal(job.estimatedCostUsd, 3 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("handles include and exclude together in the same matrix", () => {
+    // 4 base - 1 exclude + 2 include = 5 jobs.
+    const tmpFile = writeTempYaml(
+      "matrix-include-exclude",
+      `
+name: Matrix Include Exclude Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        exclude:
+          - os: macos-latest
+            node: 18
+        include:
+          - os: windows-latest
+            node: 20
+          - os: macos-latest
+            node: 22
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 5);
+      assert.equal(job.estimatedCostUsd, 5 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("counts include items when no base dimensions are defined", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-include-only",
+      `
+name: Matrix Include Only Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 18
+          - os: macos-latest
+            node: 20
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("subtracts multiple combinations when an exclude block is partial", () => {
+    // 2 os * 2 node = 4 base combinations.
+    // exclude only specifies os: macos-latest, matching both (macos-latest, 18)
+    // and (macos-latest, 20), leaving 2 combinations instead of 3.
+    const tmpFile = writeTempYaml(
+      "matrix-partial-exclude",
+      `
+name: Matrix Partial Exclude Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        exclude:
+          - os: macos-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("bills dynamic runs-on correctly with partial exclude", () => {
+    // 2 os * 2 node = 4 base combinations.
+    // Exclude os: macos-latest leaves only the 2 ubuntu combinations.
+    const tmpFile = writeTempYaml(
+      "matrix-runner-partial-exclude",
+      `
+name: Matrix Runner Partial Exclude Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        node: [18, 20]
+        exclude:
+          - os: macos-latest
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.runner, "ubuntu");
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("bills dynamic runs-on correctly for include-only matrix", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-runner-include-only",
+      `
+name: Matrix Runner Include Only Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            node: 18
+          - os: macos-latest
+            node: 20
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.runner, "macos");
+      assert.equal(job.estimatedCostUsd, 1 * 2 * 0.008 + 1 * 2 * 0.08);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("calculates matrix combinations correctly across dimension structures", () => {
+    assert.equal(computeMatrixCombinationsForTest([]), 1);
+    assert.equal(
+      computeMatrixCombinationsForTest([{ key: "os", values: ["ubuntu", "macos"] }]),
+      2
+    );
+    assert.equal(
+      computeMatrixCombinationsForTest([
+        { key: "os", values: ["ubuntu", "macos"] },
+        { key: "node", values: ["18", "20"] },
+        { key: "include", values: ["windows, 20", "macos, 22"] },
+      ]),
+      6
+    );
+    assert.equal(
+      computeMatrixCombinationsForTest([
+        { key: "os", values: ["ubuntu", "macos"] },
+        { key: "node", values: ["18", "20"] },
+        { key: "exclude", values: ["macos, 18"] },
+      ]),
+      3
+    );
+    assert.equal(
+      computeMatrixCombinationsForTest([
+        { key: "os", values: ["ubuntu", "macos"] },
+        { key: "node", values: ["18", "20"] },
+        { key: "exclude", values: ["os: macos"] },
+      ]),
+      2
+    );
   });
 });
 
