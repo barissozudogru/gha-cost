@@ -125,7 +125,8 @@ function expandField(field: string, min: number, max: number): number[] {
         lo = parseInt(range[1], 10);
         hi = parseInt(range[2], 10);
       } else if (/^\d+$/.test(body)) {
-        lo = hi = parseInt(body, 10);
+        lo = parseInt(body, 10);
+        hi = step ? max : lo;
       } else {
         continue;
       }
