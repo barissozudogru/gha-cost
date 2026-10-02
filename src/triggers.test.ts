@@ -12,6 +12,7 @@ test("cron frequency is right for the common shapes", () => {
   assert.equal(cronRunsPerDay("0 3 * * *"), 1);          // daily
   assert.equal(cronRunsPerDay("0 * * * *"), 24);         // hourly
   assert.equal(cronRunsPerDay("*/15 * * * *"), 96);      // every 15 minutes
+  assert.equal(cronRunsPerDay("5/10 * * * *"), 144);    // from minute 5, every 10 minutes
   assert.equal(Math.round(cronRunsPerDay("0 8 * * 1") * 1000) / 1000, 0.143); // weekly
   assert.ok(cronRunsPerDay("0 9 1 * *") < 0.04);         // monthly
   assert.equal(Math.round(cronRunsPerDay("30 2 * * 1-5") * 1000) / 1000, 0.714); // weekdays
