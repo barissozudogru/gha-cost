@@ -10,10 +10,40 @@ import {
 import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { spawnSync } from "node:child_process";
 
 describe("COST_RATES", () => {
   it("defaults unknown runner rate to 0", () => {
     assert.equal(COST_RATES.unknown, 0);
+  });
+});
+
+describe("CLI push frequency", () => {
+  it("honors an explicit zero push rate", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-zero-pushes-${Date.now()}.yml`);
+    const yaml = `
+name: Zero Pushes Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), "--file", tmpFile, "--pushes", "0", "--json"],
+        { encoding: "utf-8" }
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const estimates = JSON.parse(result.stdout) as Array<{ runsPerDay: number }>;
+      assert.equal(estimates[0]?.runsPerDay, 0);
+    } finally {
+      unlinkSync(tmpFile);
+    }
   });
 });
 
