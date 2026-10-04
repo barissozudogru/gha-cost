@@ -249,9 +249,9 @@ EXAMPLES
       Treat unknown (self-hosted) runners at $0.004/min
 
 RUNNER RATES (USD per minute, GitHub-hosted)
-  ubuntu-latest    $0.008
-  windows-latest   $0.016
-  macos-latest     $0.080
+  ubuntu-latest    $0.006
+  windows-latest   $0.010
+  macos-latest     $0.062
 `);
 }
 
