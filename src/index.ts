@@ -822,7 +822,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 function computeMatrixCombinations(matrix: MatrixDimension[]): number {
   if (matrix.length === 0) return 1;
   const combos = buildMatrixCombinations(matrix);
-  return Math.max(1, combos.length);
+  return combos.length;
 }
 
 function generateHints(jobs: JobEstimate[]): string[] {

@@ -627,6 +627,16 @@ jobs:
       2
     );
   });
+
+  it("reports zero combinations when every matrix entry is excluded", () => {
+    assert.equal(
+      computeMatrixCombinationsForTest([
+        { key: "os", values: ["ubuntu-latest"] },
+        { key: "exclude", values: ["os: ubuntu-latest"] },
+      ]),
+      0
+    );
+  });
 });
 
 describe("step duration heuristics", () => {
