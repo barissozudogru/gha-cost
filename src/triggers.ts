@@ -145,6 +145,31 @@ function expandDayOfWeek(field: string): number[] {
 
 const DAYS_PER_MONTH = 30.44;
 
+function dayMonthOccurrencesPerYear(dom: string, month: string): number {
+  const days = expandField(dom, 1, 31);
+  const months = expandField(month, 1, 12);
+  const averageDaysInMonth = [
+    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+  ];
+  const occurrences = months.reduce((total, selectedMonth) => {
+    const daysInMonth = averageDaysInMonth[selectedMonth - 1];
+    return (
+      total +
+      days.reduce(
+        (monthTotal, day) =>
+          monthTotal +
+          (selectedMonth === 2 && day === 29
+            ? 0.25
+            : day <= daysInMonth
+              ? 1
+              : 0),
+        0
+      )
+    );
+  }, 0);
+  return occurrences / 365.25;
+}
+
 /**
  * Approximate how many times a cron expression fires per day.
  *
@@ -182,6 +207,14 @@ export function cronRunsPerDay(expr: string): number {
 
   const monthFactor =
     month.trim() === "*" ? 1 : expandField(month, 1, 12).length / 12;
+
+  // A restricted day-of-month and month must be counted as pairs when
+  // day-of-week is unrestricted. For example, February 31 never fires, and
+  // February 30, April 30 fires only once rather than twice per year.
+  if (domRestricted && !dowRestricted) {
+    dayFactor = dayMonthOccurrencesPerYear(dom, month);
+    return minutes * hours * dayFactor;
+  }
 
   return minutes * hours * dayFactor * monthFactor;
 }
