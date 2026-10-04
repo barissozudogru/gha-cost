@@ -204,7 +204,7 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       file = args[++i];
     } else if (arg === "--pushes" || arg === "-p") {
       const val = parseInt(args[++i] ?? "", 10);
-      if (!isNaN(val) && val > 0) pushes = val;
+      if (!isNaN(val) && val >= 0) pushes = val;
     } else if (arg === "--self-hosted-rate") {
       const val = parseFloat(args[++i] ?? "");
       if (!isNaN(val) && val >= 0) selfHostedRate = val;
