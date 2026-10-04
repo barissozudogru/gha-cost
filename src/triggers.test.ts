@@ -65,6 +65,13 @@ test("pushes per day applies only to push-like triggers", () => {
   assert.equal(estimateRunsPerDay(pushed, 10).runsPerDay, 10);
 });
 
+test("negative push rates do not produce negative workflow frequency", () => {
+  const pushed = parseTriggers("on: push\njobs:\n  a:\n");
+  const estimate = estimateRunsPerDay(pushed, -2);
+  assert.equal(estimate.runsPerDay, 0);
+  assert.equal(estimate.basis, "no known cadence");
+});
+
 test("push and schedule together are added", () => {
   const wf = ["on:", "  push:", "  schedule:", "    - cron: '0 3 * * *'", "jobs:"].join("\n");
   assert.equal(estimateRunsPerDay(parseTriggers(wf), 10).runsPerDay, 11);
