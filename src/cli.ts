@@ -203,8 +203,11 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
     } else if (arg === "--file" || arg === "-f") {
       file = args[++i];
     } else if (arg === "--pushes" || arg === "-p") {
-      const val = parseInt(args[++i] ?? "", 10);
-      if (!isNaN(val) && val >= 0) pushes = val;
+      const raw = args[++i] ?? "";
+      const parsed = Number(raw);
+      if (/^\d+$/.test(raw) && Number.isFinite(parsed)) {
+        pushes = parsed;
+      }
     } else if (arg === "--self-hosted-rate") {
       const val = parseFloat(args[++i] ?? "");
       if (Number.isFinite(val) && val >= 0) selfHostedRate = val;
