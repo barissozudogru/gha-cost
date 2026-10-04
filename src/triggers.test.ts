@@ -27,6 +27,18 @@ test("a malformed cron contributes nothing rather than guessing", () => {
   assert.equal(cronRunsPerDay("0 3 * *"), 0);
 });
 
+test("an impossible day of month contributes no runs", () => {
+  assert.equal(cronRunsPerDay("0 0 31 2 *"), 0);
+  assert.equal(
+    cronRunsPerDay("0 0 30 2,4 *"),
+    1 / 365.25
+  );
+  assert.equal(
+    cronRunsPerDay("0 0 29-31 2 *"),
+    0.25 / 365.25
+  );
+});
+
 test("all three on: forms parse", () => {
   assert.deepEqual(parseTriggers("on: push\njobs:\n  a:\n").names, ["push"]);
   assert.deepEqual(
