@@ -134,8 +134,13 @@ function detectRunnerType(runsOn: string): RunnerType {
 }
 
 function rateFor(runner: RunnerType, selfHostedRate?: number): number {
+  const validSelfHostedRate =
+    selfHostedRate !== undefined &&
+    Number.isFinite(selfHostedRate) &&
+    selfHostedRate >= 0;
+
   return runner === "unknown"
-    ? (selfHostedRate ?? COST_RATES.unknown)
+    ? (validSelfHostedRate ? selfHostedRate : COST_RATES.unknown)
     : COST_RATES[runner];
 }
 

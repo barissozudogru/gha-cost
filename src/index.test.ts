@@ -94,6 +94,30 @@ jobs:
     }
   });
 
+  it("rejects non-finite self-hosted rates in the exported API", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-infinite-rate-${Date.now()}.yml`);
+    const yaml = `
+name: Infinite Rate Test
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Build
+        run: echo "hello"
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      for (const rate of [Infinity, Number.NaN]) {
+        const estimate = estimateWorkflow(tmpFile, 10, rate);
+        assert.equal(estimate.jobs[0]?.estimatedCostUsd, 0);
+        assert.equal(estimate.totalEstimatedCostPerRun, 0);
+      }
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("detects self-hosted runner even if linux is in the label array", () => {
     const tmpFile = join(tmpdir(), `test-workflow-sh-linux-${Date.now()}.yml`);
     const yaml = `
