@@ -204,7 +204,9 @@ export function estimateRunsPerDay(
 ): FrequencyEstimate {
   const parts: string[] = [];
   let total = 0;
-  const validPushesPerDay = Math.max(0, pushesPerDay);
+  const validPushesPerDay = Number.isFinite(pushesPerDay)
+    ? Math.max(0, pushesPerDay)
+    : 0;
 
   if (triggers.hasPushLike) {
     total += validPushesPerDay;
