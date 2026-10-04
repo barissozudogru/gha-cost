@@ -18,6 +18,10 @@ test("cron frequency is right for the common shapes", () => {
   assert.equal(Math.round(cronRunsPerDay("30 2 * * 1-5") * 1000) / 1000, 0.714); // weekdays
 });
 
+test("cron day-of-week value 7 is treated as Sunday", () => {
+  assert.equal(cronRunsPerDay("0 8 * * 7"), 1 / 7);
+});
+
 test("a malformed cron contributes nothing rather than guessing", () => {
   assert.equal(cronRunsPerDay("not a cron"), 0);
   assert.equal(cronRunsPerDay("0 3 * *"), 0);

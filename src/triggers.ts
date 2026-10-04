@@ -138,6 +138,11 @@ function expandField(field: string, min: number, max: number): number[] {
   return [...out];
 }
 
+/** Expand a cron day-of-week field, where 0 and 7 both mean Sunday. */
+function expandDayOfWeek(field: string): number[] {
+  return [...new Set(expandField(field, 0, 7).map((day) => (day === 7 ? 0 : day)))];
+}
+
 const DAYS_PER_MONTH = 30.44;
 
 /**
@@ -166,12 +171,12 @@ export function cronRunsPerDay(expr: string): number {
   } else if (domRestricted && !dowRestricted) {
     dayFactor = expandField(dom, 1, 31).length / DAYS_PER_MONTH;
   } else if (!domRestricted && dowRestricted) {
-    dayFactor = expandField(dow, 0, 6).length / 7;
+    dayFactor = expandDayOfWeek(dow).length / 7;
   } else {
     // Cron ORs the two, so the schedule fires at least as often as the looser.
     dayFactor = Math.max(
       expandField(dom, 1, 31).length / DAYS_PER_MONTH,
-      expandField(dow, 0, 6).length / 7
+      expandDayOfWeek(dow).length / 7
     );
   }
 
