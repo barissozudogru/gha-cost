@@ -10,11 +10,12 @@ import type {
   CostRates,
 } from "./types.js";
 
-// GitHub Actions per-minute billing rates (USD)
+// Standard GitHub-hosted runner rates (USD), checked 2026-10-04.
+// https://docs.github.com/en/billing/reference/actions-runner-pricing
 const COST_RATES: CostRates = {
-  ubuntu: 0.008,
-  macos: 0.08,
-  windows: 0.016,
+  ubuntu: 0.006,
+  macos: 0.062,
+  windows: 0.01,
   unknown: 0,
 };
 

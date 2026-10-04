@@ -1,6 +1,11 @@
 # gha-cost
 
-Know what your GitHub Actions workflows cost before you push.
+[![npm version](https://img.shields.io/npm/v/@barissozudogru/gha-cost)](https://www.npmjs.com/package/@barissozudogru/gha-cost)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue)](./LICENSE)
+
+[npm](https://www.npmjs.com/package/@barissozudogru/gha-cost) · [Source](https://github.com/barissozudogru/gha-cost) · [Issues](https://github.com/barissozudogru/gha-cost/issues)
+
+Estimate GitHub Actions runtime and cost ranges before you push.
 
 `gha-cost` parses workflow YAML files locally without executing them or making API calls. It expands matrix combinations, estimates step durations using heuristics for common actions, rounds job runtimes to whole-minute increments per GitHub billing rules, and projects costs per run, day, and month.
 
@@ -49,112 +54,43 @@ gha-cost --self-hosted-rate 0.004
 
 ## Runner Pricing
 
-Rates used for estimation (USD per minute, GitHub-hosted runners):
+Standard GitHub-hosted runner rates used on the default branch, checked on 2026-10-04 (USD per minute):
 
-| Runner | Rate / min | Relative cost |
-|--------|-----------|---------------|
-| `ubuntu-latest` | $0.008 | 1x (baseline) |
-| `windows-latest` | $0.016 | 2x |
-| `macos-latest` | $0.080 | 10x |
-| Self-hosted | $0.000 | Configurable via `--self-hosted-rate` |
+| Runner | Rate / min |
+|---|---|
+| `ubuntu-latest` | $0.006 |
+| `windows-latest` | $0.010 |
+| `macos-latest` | $0.062 |
+| Self-hosted or unrecognised | $0.000 by default; configurable via `--self-hosted-rate` |
 
-Rates reflect GitHub billing rules. GitHub charges in whole-minute increments per job.
+GitHub rounds each job up to a whole minute. Check the
+[official runner pricing](https://docs.github.com/en/billing/reference/actions-runner-pricing)
+before making a budget decision. The latest npm release may use an older rate
+snapshot until changes on the default branch are published.
 
-## Example Output
+## Output and interpretation
 
-Given a workflow with lint, test matrix, build, and deploy jobs:
+The terminal report includes estimated job durations, cost ranges, matrix
+multipliers, run frequency, and optimisation hints. These are heuristic estimates;
+the tool does not measure execution time or read your billing account.
 
-```
-------------------------------------------------------------
-Workflow: CI  (ci.yml)
-------------------------------------------------------------
-
-  lint  [ubuntu-latest]
-    - Checkout          actions/checkout      30s
-    - Setup Node.js     actions/setup-node    45s
-    - Install deps      npm ci                2m
-    - Lint              npm run lint          1m
-    time: 4m 15s  cost: $0.0016
-
-  test  [ubuntu-latest]  x4 matrix
-    - Checkout          actions/checkout      30s
-    - Setup Node.js     actions/setup-node    45s
-    - Install deps      npm ci                2m
-    - Run tests         npm test              5m
-    time/matrix: 8m 15s  total: 33m  cost: $0.0128
-
-  build  [ubuntu-latest]
-    - Checkout          actions/checkout      30s
-    - Setup Node.js     actions/setup-node    45s
-    - Install deps      npm ci                2m
-    - Build             npm run build         3m
-    time: 6m 15s  cost: $0.0024
-
-  deploy  [ubuntu-latest]
-    - Checkout          actions/checkout      30s
-    - Deploy            deploy to production  2m
-    time: 2m 30s  cost: $0.0008
-
-------------------------------------------------------------
-Summary
-  Total estimated time:  45m 30s
-  Cost per run:          $0.0176
-  Cost per day:          $0.176   (10 pushes/day)
-  Cost per month:        $5.28    (30 days)
-
-Optimization hints:
-  !  Job "test": Matrix has 4 combinations. Consider reducing matrix dimensions
-     or using fail-fast: false only when necessary.
-  !  Consider adding path filters (on.push.paths) to skip workflows when
-     unrelated files change.
-------------------------------------------------------------
-```
-
-Monthly projections assume the configured `--pushes` value daily for 30 days.
-
-## JSON Output
-
-Use `--json` to output structured data for CI scripts or dashboards:
+Use JSON output to inspect workflow totals:
 
 ```bash
 gha-cost --json | jq '.[] | {workflow: .workflowName, monthly: .totalEstimatedCostPerMonth}'
 ```
 
-```json
-[
-  {
-    "file": "ci.yml",
-    "workflowName": "CI",
-    "jobs": [
-      {
-        "id": "test",
-        "name": "test",
-        "runner": "ubuntu",
-        "runnerLabel": "ubuntu-latest",
-        "steps": [
-          {
-            "name": "Checkout",
-            "uses": "actions/checkout@v4",
-            "estimatedSeconds": 30
-          }
-        ],
-        "matrix": [{ "key": "node-version", "values": ["18", "20", "22", "24"] }],
-        "matrixCombinations": 4,
-        "estimatedSecondsPerMatrix": 495,
-        "estimatedTotalSeconds": 1980,
-        "estimatedCostUsd": 0.0128
-      }
-    ],
-    "totalEstimatedSeconds": 2730,
-    "totalEstimatedCostPerRun": 0.0176,
-    "totalEstimatedCostPerDay": 0.176,
-    "totalEstimatedCostPerMonth": 5.28,
-    "hints": [
-      "Job \"test\": Matrix has 4 combinations. Consider reducing matrix dimensions or using fail-fast: false only when necessary."
-    ]
-  }
-]
-```
+The JSON includes job estimates and low/high duration and cost bounds, alongside
+`totalEstimatedCostPerRun`, `totalEstimatedCostPerDay`, and
+`totalEstimatedCostPerMonth`. Monthly projections use 30.44 days and the estimated
+run frequency. Review the reported frequency and use `--pushes` when modelling
+push-triggered workflows.
+
+Standard hosted runners are [free for public repositories](https://docs.github.com/en/billing/concepts/product-billing/github-actions). Included private-repository
+minutes, discounts, taxes, storage, and account-specific allowances are not subtracted
+from the estimate. Larger and specialised runner prices are not modelled individually;
+an OS classification can underestimate their cost. Unknown labels default to zero
+unless a custom rate is supplied.
 
 ## Exit Codes
 
@@ -162,6 +98,20 @@ gha-cost --json | jq '.[] | {workflow: .workflowName, monthly: .totalEstimatedCo
 |------|---------|
 | `0` | Success - at least one workflow estimated |
 | `1` | No workflow files found or all files failed to parse |
+
+## Development and support
+
+Report problems through [GitHub issues](https://github.com/barissozudogru/gha-cost/issues). See [CONTRIBUTING.md](./CONTRIBUTING.md) for the contribution workflow.
+
+To build and test a source checkout with Node.js 22:
+
+```bash
+npm ci
+npm test
+npm run build
+```
+
+The default branch can contain changes that have not yet been published to npm.
 
 ## License
 

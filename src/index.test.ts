@@ -104,11 +104,11 @@ jobs:
     try {
       const estimate = estimateWorkflow(tmpFile, 10);
       // A generic step spans 0s to 60s. The high bound is one rounded minute
-      // at $0.08, not 60/60 minutes at the ubuntu rate the summary once
+      // at $0.062, not 60/60 minutes at the ubuntu rate the summary once
       // applied to raw seconds.
-      assert.equal(estimate.jobs[0].estimatedCostUsdHigh, 0.08);
+      assert.equal(estimate.jobs[0].estimatedCostUsdHigh, 0.062);
       assert.equal(estimate.totalEstimatedCostPerRunLow, 0);
-      assert.equal(estimate.totalEstimatedCostPerRunHigh, 0.08);
+      assert.equal(estimate.totalEstimatedCostPerRunHigh, 0.062);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -136,17 +136,17 @@ jobs:
       const estimate = estimateWorkflow(tmpFile, 10);
       // Checkout spans 1-25s and npm ci 15-120s, so the ubuntu job spans 16s
       // to 145s: one and three rounded minutes. The windows job spans 1-25s,
-      // one rounded minute at twice the ubuntu rate. Summing the job rows has
+      // one rounded minute at the Windows rate. Summing the job rows has
       // to land inside the workflow bounds.
       const linux = estimate.jobs.find((j) => j.id === "linux");
       const windows = estimate.jobs.find((j) => j.id === "windows");
       assert.ok(linux && windows);
-      assert.equal(linux.estimatedCostUsdLow, 1 * 0.008);
-      assert.equal(linux.estimatedCostUsdHigh, 3 * 0.008);
-      assert.equal(windows.estimatedCostUsdLow, 1 * 0.016);
-      assert.equal(windows.estimatedCostUsdHigh, 1 * 0.016);
-      assert.equal(estimate.totalEstimatedCostPerRunLow, 1 * 0.008 + 1 * 0.016);
-      assert.equal(estimate.totalEstimatedCostPerRunHigh, 3 * 0.008 + 1 * 0.016);
+      assert.equal(linux.estimatedCostUsdLow, 1 * 0.006);
+      assert.equal(linux.estimatedCostUsdHigh, 3 * 0.006);
+      assert.equal(windows.estimatedCostUsdLow, 1 * 0.010);
+      assert.equal(windows.estimatedCostUsdHigh, 1 * 0.010);
+      assert.equal(estimate.totalEstimatedCostPerRunLow, 1 * 0.006 + 1 * 0.010);
+      assert.equal(estimate.totalEstimatedCostPerRunHigh, 3 * 0.006 + 1 * 0.010);
       assert.ok(
         estimate.totalEstimatedCostPerRunLow <= estimate.totalEstimatedCostPerRun &&
           estimate.totalEstimatedCostPerRun <= estimate.totalEstimatedCostPerRunHigh,
@@ -197,12 +197,12 @@ ${MATRIX_STEPS_YAML}
       assert.equal(job.matrixCombinations, 3);
       assert.equal(job.runner, "macos");
       assert.equal(job.runnerLabel, "${{ matrix.os }}");
-      // 2 minutes each at $0.008, $0.08 and $0.016. Bounds: 16s is one
+      // 2 minutes each at $0.006, $0.062 and $0.010. Bounds: 16s is one
       // rounded minute, 145s is three.
-      assert.equal(job.estimatedCostUsd, 2 * (0.008 + 0.08 + 0.016));
-      assert.equal(job.estimatedCostUsdLow, 1 * (0.008 + 0.08 + 0.016));
-      assert.equal(job.estimatedCostUsdHigh, 3 * (0.008 + 0.08 + 0.016));
-      assert.equal(estimate.totalEstimatedCostPerRun, 2 * (0.008 + 0.08 + 0.016));
+      assert.equal(job.estimatedCostUsd, 2 * (0.006 + 0.062 + 0.010));
+      assert.equal(job.estimatedCostUsdLow, 1 * (0.006 + 0.062 + 0.010));
+      assert.equal(job.estimatedCostUsdHigh, 0.234);
+      assert.equal(estimate.totalEstimatedCostPerRun, 2 * (0.006 + 0.062 + 0.010));
     } finally {
       unlinkSync(tmpFile);
     }
@@ -228,7 +228,7 @@ ${MATRIX_STEPS_YAML}
       const job = estimate.jobs[0];
       assert.equal(job.runner, "ubuntu");
       // Two combinations, each 2 rounded minutes on ubuntu.
-      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -260,7 +260,7 @@ ${MATRIX_STEPS_YAML}
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 4);
       assert.equal(job.runner, "macos");
-      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008 + 2 * 2 * 0.08);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.006 + 2 * 2 * 0.062);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -304,9 +304,9 @@ ${MATRIX_STEPS_YAML}
     // - macos-latest, 20 (macos)
     // - windows-latest, 20 (windows)
     // - macos-latest, 22 (macos)
-    // Total 5 combinations: 2 ubuntu ($0.008), 2 macos ($0.080), 1 windows ($0.016).
+    // Total 5 combinations: 2 ubuntu ($0.006), 2 macos ($0.062), 1 windows ($0.010).
     // 2 billed minutes per combination:
-    // (2 * 2 * 0.008) + (2 * 2 * 0.080) + (1 * 2 * 0.016) = 0.032 + 0.320 + 0.032 = 0.384.
+    // (2 * 2 * 0.006) + (2 * 2 * 0.062) + (1 * 2 * 0.010) = 0.024 + 0.248 + 0.020 = 0.292.
     const tmpFile = writeTempYaml(
       "matrix-runner-include-exclude",
       `
@@ -337,7 +337,7 @@ ${MATRIX_STEPS_YAML}
       assert.equal(job.runner, "macos");
       assert.equal(
         job.estimatedCostUsd,
-        2 * 2 * 0.008 + 2 * 2 * 0.08 + 1 * 2 * 0.016
+        0.292
       );
     } finally {
       unlinkSync(tmpFile);
@@ -385,8 +385,8 @@ jobs:
       assert.equal(job.matrixCombinations, 6);
       // Checkout (1-25s) and npm ci (15-120s) sum to 16-145s (midpoint 81s),
       // which rounds up to 2 billed minutes per combination.
-      // 6 combinations * 2 minutes * $0.008 (ubuntu) = $0.096.
-      assert.equal(job.estimatedCostUsd, 6 * 2 * 0.008);
+      // 6 combinations * 2 minutes * $0.006 (ubuntu) = $0.072.
+      assert.equal(job.estimatedCostUsd, 6 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -419,7 +419,7 @@ jobs:
       const estimate = estimateWorkflow(tmpFile, 10);
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 3);
-      assert.equal(job.estimatedCostUsd, 3 * 2 * 0.008);
+      assert.equal(job.estimatedCostUsd, 3 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -457,7 +457,7 @@ jobs:
       const estimate = estimateWorkflow(tmpFile, 10);
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 5);
-      assert.equal(job.estimatedCostUsd, 5 * 2 * 0.008);
+      assert.equal(job.estimatedCostUsd, 5 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -489,7 +489,7 @@ jobs:
       const estimate = estimateWorkflow(tmpFile, 10);
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 2);
-      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -523,7 +523,7 @@ jobs:
       const estimate = estimateWorkflow(tmpFile, 10);
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 2);
-      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -557,7 +557,7 @@ jobs:
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 2);
       assert.equal(job.runner, "ubuntu");
-      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.008);
+      assert.equal(job.estimatedCostUsd, 2 * 2 * 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -590,7 +590,7 @@ jobs:
       const job = estimate.jobs[0];
       assert.equal(job.matrixCombinations, 2);
       assert.equal(job.runner, "macos");
-      assert.equal(job.estimatedCostUsd, 1 * 2 * 0.008 + 1 * 2 * 0.08);
+      assert.equal(job.estimatedCostUsd, 1 * 2 * 0.006 + 1 * 2 * 0.062);
     } finally {
       unlinkSync(tmpFile);
     }
