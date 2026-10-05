@@ -170,12 +170,38 @@ function dayMonthOccurrencesPerYear(dom: string, month: string): number {
   return occurrences / 365.25;
 }
 
+function dayMonthWeekdayOccurrencesPerDay(
+  dom: string,
+  month: string,
+  dow: string
+): number {
+  const days = new Set(expandField(dom, 1, 31));
+  const months = new Set(expandField(month, 1, 12));
+  const weekdays = new Set(expandDayOfWeek(dow));
+  let occurrences = 0;
+
+  // The Gregorian calendar repeats every 400 years. Counting the union here
+  // preserves cron's OR semantics for restricted day-of-month and weekday
+  // fields, including their overlap on dates such as a Monday the 1st.
+  for (let year = 2000; year < 2400; year++) {
+    for (let monthNumber = 1; monthNumber <= 12; monthNumber++) {
+      if (!months.has(monthNumber)) continue;
+      const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const weekday = new Date(Date.UTC(year, monthNumber - 1, day)).getUTCDay();
+        if (days.has(day) || weekdays.has(weekday)) occurrences++;
+      }
+    }
+  }
+  return occurrences / 146097;
+}
+
 /**
  * Approximate how many times a cron expression fires per day.
  *
  * Exact for the common shapes: hourly, daily, weekly, monthly and every-N
- * minutes. Day-of-month and day-of-week are ORed by cron when both are
- * restricted, which is approximated by taking the more frequent of the two.
+ * minutes. When both day-of-month and day-of-week are restricted, their cron
+ * union is counted across the Gregorian 400-year cycle.
  */
 export function cronRunsPerDay(expr: string): number {
   const fields = expr.trim().split(/\s+/);
@@ -198,11 +224,7 @@ export function cronRunsPerDay(expr: string): number {
   } else if (!domRestricted && dowRestricted) {
     dayFactor = expandDayOfWeek(dow).length / 7;
   } else {
-    // Cron ORs the two, so the schedule fires at least as often as the looser.
-    dayFactor = Math.max(
-      expandField(dom, 1, 31).length / DAYS_PER_MONTH,
-      expandDayOfWeek(dow).length / 7
-    );
+    return minutes * hours * dayMonthWeekdayOccurrencesPerDay(dom, month, dow);
   }
 
   const monthFactor =

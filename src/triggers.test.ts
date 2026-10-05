@@ -39,6 +39,27 @@ test("an impossible day of month contributes no runs", () => {
   );
 });
 
+test("restricted day-of-month and weekday fields use cron union semantics", () => {
+  // Each result is the exact number of matching dates in the Gregorian
+  // 400-year cycle, represented as runs per day.
+  assert.equal(
+    Math.round(cronRunsPerDay("0 0 1 1 1") * 146097),
+    2114
+  );
+  assert.equal(
+    Math.round(cronRunsPerDay("0 0 1 2,4 1") * 146097),
+    4015
+  );
+  assert.equal(
+    Math.round(cronRunsPerDay("0 0 1,15 1-3 1-2") * 146097),
+    12029
+  );
+  assert.equal(
+    Math.round(cronRunsPerDay("0 0 31 2 1") * 146097),
+    1615
+  );
+});
+
 test("all three on: forms parse", () => {
   assert.deepEqual(parseTriggers("on: push\njobs:\n  a:\n").names, ["push"]);
   assert.deepEqual(
