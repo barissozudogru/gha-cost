@@ -179,6 +179,40 @@ jobs:
     }
   });
 
+  it("ignores a self-hosted rate with trailing non-numeric input", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-invalid-rate-${Date.now()}.yml`);
+    const yaml = `
+name: Invalid Self Hosted Rate Test
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Build
+        run: echo "hello"
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          join(process.cwd(), "dist", "cli.js"),
+          "--file",
+          tmpFile,
+          "--self-hosted-rate",
+          "0.005oops",
+          "--json",
+        ],
+        { encoding: "utf-8" }
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const estimates = JSON.parse(result.stdout) as Array<{ jobs: Array<{ estimatedCostUsd: number }> }>;
+      assert.equal(estimates[0]?.jobs[0]?.estimatedCostUsd, 0);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("detects self-hosted runner even if linux is in the label array", () => {
     const tmpFile = join(tmpdir(), `test-workflow-sh-linux-${Date.now()}.yml`);
     const yaml = `

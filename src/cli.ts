@@ -209,8 +209,9 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
         pushes = parsed;
       }
     } else if (arg === "--self-hosted-rate") {
-      const val = parseFloat(args[++i] ?? "");
-      if (Number.isFinite(val) && val >= 0) selfHostedRate = val;
+      const raw = args[++i] ?? "";
+      const val = Number(raw);
+      if (raw.trim() !== "" && Number.isFinite(val) && val >= 0) selfHostedRate = val;
     } else if (!arg.startsWith("-")) {
       // Positional argument treated as file path
       file = arg;
