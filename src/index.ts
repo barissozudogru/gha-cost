@@ -762,8 +762,8 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 const key = propMatch[1] as "name" | "uses" | "run";
                 let val = stripInlineComment(propMatch[2]).replace(/^['"]|['"]$/g, "");
 
-                // Handle multi-line run blocks (pipe | or folded >)
-                if (val === "|" || val === ">") {
+                // Handle multi-line run blocks (pipe | or folded > with optional chomping or indent indicator)
+                if (/^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
                   val = "";
                   i++;
                   while (i < lines.length) {
