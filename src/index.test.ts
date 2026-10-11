@@ -888,3 +888,34 @@ describe("cache detection", () => {
     assert.equal(detectsCachingForTest(wf), false);
   });
 });
+
+describe("multi-line run block scalar parsing", () => {
+  it("collects script lines for block scalars with chomping indicators", () => {
+    const forms = ["|", "|-", "|+", ">", ">-", ">+"];
+    for (const header of forms) {
+      const tmpFile = join(tmpdir(), `test-workflow-run-scalar-${Date.now()}-${Math.random()}.yml`);
+      const yaml = `
+name: Scalar Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install and build
+        run: ${header}
+          npm ci
+          npm run build
+`;
+      writeFileSync(tmpFile, yaml, "utf-8");
+
+      try {
+        const estimate = estimateWorkflow(tmpFile, 10);
+        const step = estimate.jobs[0].steps[0];
+        assert.equal(step.run, "npm ci npm run build", `failed to collect script for ${header}`);
+        assert.equal(step.estimatedSecondsLow, 15, `underpriced low duration for ${header}`);
+        assert.equal(step.estimatedSecondsHigh, 120, `underpriced high duration for ${header}`);
+      } finally {
+        unlinkSync(tmpFile);
+      }
+    }
+  });
+});
