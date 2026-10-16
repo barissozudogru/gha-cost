@@ -227,26 +227,27 @@ function buildMatrixCombinations(
     const includeRules = includeDim.values.map((v) =>
       parseMatrixValueObject(v, dimensionKeys)
     );
+    // GitHub evaluates every include rule against the combinations produced
+    // by the base dimensions, not against combinations added by an earlier
+    // include rule. Added properties may be overwritten, so keep a snapshot
+    // of the original values for matching while mutating the live combos.
+    const originalCombos = combos.map((combo) => new Map(combo));
     for (const rule of includeRules) {
       const keys = Object.keys(rule);
       if (keys.length === 0) continue;
 
-      if (combos.length === 0) {
-        combos.push(new Map(Object.entries(rule)));
-        continue;
-      }
-
-      const matching = combos.filter((combo) => {
+      const matchingIndexes = originalCombos.flatMap((combo, index) => {
         for (const [k, v] of Object.entries(rule)) {
           if (combo.has(k) && combo.get(k) !== v) {
-            return false;
+            return [];
           }
         }
-        return true;
+        return [index];
       });
 
-      if (matching.length > 0) {
-        for (const combo of matching) {
+      if (matchingIndexes.length > 0) {
+        for (const index of matchingIndexes) {
+          const combo = combos[index];
           for (const [k, v] of Object.entries(rule)) {
             combo.set(k, v);
           }

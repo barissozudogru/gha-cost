@@ -786,6 +786,23 @@ jobs:
       0
     );
   });
+
+  it("does not apply a later include rule to a combination added by include", () => {
+    // GitHub evaluates each include rule against the original combinations.
+    // The second rule therefore adds a fourth job instead of modifying the
+    // combination created by the first rule.
+    assert.equal(
+      computeMatrixCombinationsForTest([
+        { key: "fruit", values: ["apple"] },
+        { key: "animal", values: ["cat", "dog"] },
+        {
+          key: "include",
+          values: ["fruit: banana", "fruit: banana, animal: cat"],
+        },
+      ]),
+      4
+    );
+  });
 });
 
 describe("step duration heuristics", () => {
