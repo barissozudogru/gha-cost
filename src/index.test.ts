@@ -904,6 +904,17 @@ describe("cache detection", () => {
     ].join("\n");
     assert.equal(detectsCachingForTest(wf), false);
   });
+
+  it("does not treat a later action's cache input as setup-node caching", () => {
+    const wf = [
+      "jobs:", "  a:", "    steps:",
+      "      - uses: actions/setup-node@v4",
+      "        with:", "          node-version: 20",
+      "      - uses: example/action@v1",
+      "        with:", "          cache: false",
+    ].join("\n");
+    assert.equal(detectsCachingForTest(wf), false);
+  });
 });
 
 describe("multi-line run block scalar parsing", () => {
