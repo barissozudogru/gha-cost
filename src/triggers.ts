@@ -88,11 +88,12 @@ export function parseTriggers(content: string): WorkflowTriggers {
 
     // A trigger name is a key at the first level inside on:. Nested keys such
     // as branches: or paths: sit deeper and must not be read as triggers.
-    const key = /^([a-z_]+):/.exec(trimmed);
+    const key = /^(?:"([a-z_]+)"|'([a-z_]+)'|([a-z_]+)):\s*/.exec(trimmed);
     if (key) {
+      const triggerName = key[1] ?? key[2] ?? key[3];
       if (triggerIndent === null) triggerIndent = indent;
-      if (indent === triggerIndent && !names.includes(key[1])) {
-        names.push(key[1]);
+      if (indent === triggerIndent && !names.includes(triggerName)) {
+        names.push(triggerName);
       }
     }
   }
