@@ -774,10 +774,30 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               const keyMatch = inlineKey.match(/^(name|uses|run):\s*(.*)/);
               if (keyMatch) {
                 const key = keyMatch[1] as "name" | "uses" | "run";
-                currentStep[key] = stripInlineComment(keyMatch[2]);
+                let val = stripInlineComment(keyMatch[2]);
+                let consumedBlock = false;
+                if (key === "run" && /^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
+                  consumedBlock = true;
+                  val = "";
+                  i++;
+                  while (i < lines.length) {
+                    const runLine = lines[i];
+                    if (runLine.trim() === "") {
+                      val += " ";
+                      i++;
+                      continue;
+                    }
+                    if (getIndent(runLine) <= stepPropIndent) break;
+                    val += " " + runLine.trim();
+                    i++;
+                  }
+                  val = val.trim();
+                }
+                currentStep[key] = val;
+                if (!consumedBlock) i++;
+              } else {
+                i++;
               }
-
-              i++;
               continue;
             }
 

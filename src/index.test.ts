@@ -980,4 +980,30 @@ jobs:
       }
     }
   });
+
+  it("collects script lines when the block scalar is inline with run", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-inline-run-scalar-${Date.now()}-${Math.random()}.yml`);
+    const yaml = `
+name: Inline Scalar Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          npm ci
+      - uses: actions/checkout@v4
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const step = estimate.jobs[0].steps[0];
+      assert.equal(step.run, "npm ci");
+      assert.equal(step.estimatedSecondsLow, 15);
+      assert.equal(step.estimatedSecondsHigh, 120);
+      assert.equal(estimate.jobs[0].steps[1]?.uses, "actions/checkout@v4");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
