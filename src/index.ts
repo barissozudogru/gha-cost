@@ -94,8 +94,35 @@ const GENERIC_STEP = { low: 0, high: 60 };
  */
 export function detectsCaching(content: string): boolean {
   if (/uses:\s*actions\/cache/i.test(content)) return true;
-  // `cache:` nested under a setup-* action's `with:` block.
-  return /uses:\s*actions\/setup-[a-z]+[\s\S]{0,200}?^\s+cache:\s*\S/im.test(content);
+  // `cache:` must be nested under the same setup-* step, not a later action.
+  const lines = content.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const setup = /^(\s*)(?:-\s*)?uses:\s*actions\/setup-[a-z]+(?:@|\s|$)/i.exec(lines[i]);
+    if (!setup) continue;
+
+    const setupIndent = setup[1].length;
+    let stepIndent = setupIndent;
+    if (!lines[i].trimStart().startsWith("-")) {
+      for (let j = i - 1; j >= 0; j--) {
+        if (lines[j].trim() === "" || lines[j].trim().startsWith("#")) continue;
+        const previousIndent = lines[j].length - lines[j].trimStart().length;
+        if (/^-\s/.test(lines[j].trimStart())) {
+          stepIndent = previousIndent;
+        }
+        break;
+      }
+    }
+
+    for (let j = i + 1; j < lines.length; j++) {
+      const line = lines[j];
+      if (line.trim() === "" || line.trim().startsWith("#")) continue;
+      const indent = line.length - line.trimStart().length;
+      if (indent <= stepIndent && /^-\s/.test(line.trimStart())) break;
+      if (indent <= stepIndent) break;
+      if (/^\s+cache:\s*\S/i.test(line)) return true;
+    }
+  }
+  return false;
 }
 
 export interface DurationRange {
