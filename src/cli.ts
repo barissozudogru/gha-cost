@@ -205,7 +205,7 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
     } else if (arg === "--pushes" || arg === "-p") {
       const raw = args[++i] ?? "";
       const parsed = Number(raw);
-      if (/^\d+$/.test(raw) && Number.isFinite(parsed)) {
+      if (/^\d+$/.test(raw) && Number.isSafeInteger(parsed)) {
         pushes = parsed;
       }
     } else if (arg === "--self-hosted-rate") {

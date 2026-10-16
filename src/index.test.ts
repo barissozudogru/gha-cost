@@ -106,6 +106,40 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("ignores a push rate that exceeds safe integer precision", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-unsafe-pushes-${Date.now()}.yml`);
+    const yaml = `
+name: Unsafe Pushes Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [
+          join(process.cwd(), "dist", "cli.js"),
+          "--file",
+          tmpFile,
+          "--pushes",
+          "9007199254740993",
+          "--json",
+        ],
+        { encoding: "utf-8" }
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const estimates = JSON.parse(result.stdout) as Array<{ runsPerDay: number }>;
+      assert.equal(estimates[0]?.runsPerDay, 10);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("estimateWorkflow self-hosted rate handling", () => {
