@@ -83,6 +83,13 @@ test("quoted on: keys parse, since YAML reads bare on as boolean true", () => {
   assert.deepEqual(parseTriggers("'on': push\njobs:\n").names, ["push"]);
 });
 
+test("quoted trigger keys parse inside the on: mapping", () => {
+  const workflow = ['on:', '  "push":', 'jobs:'].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.names, ["push"]);
+  assert.equal(triggers.hasPushLike, true);
+});
+
 test("schedule crons are collected", () => {
   const wf = ["on:", "  schedule:", "    - cron: '0 8 * * 1'", "    - cron: \"0 20 * * 5\"", "jobs:"].join("\n");
   assert.deepEqual(parseTriggers(wf).crons, ["0 8 * * 1", "0 20 * * 5"]);
