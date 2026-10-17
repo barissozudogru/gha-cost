@@ -573,7 +573,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
   // Find jobs: block
   let jobsStart = -1;
   for (let j = 0; j < lines.length; j++) {
-    if (/^jobs:\s*$/.test(lines[j])) {
+    if (/^jobs:\s*(?:#.*)?$/.test(lines[j])) {
       jobsStart = j + 1;
       break;
     }
