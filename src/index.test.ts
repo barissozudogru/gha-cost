@@ -1029,4 +1029,25 @@ describe("workflow key parsing", () => {
       unlinkSync(tmpFile);
     }
   });
+
+  it("parses a job when the job key has a YAML comment", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-commented-job-${Date.now()}-${Math.random()}.yml`);
+    const yaml = [
+      "name: Commented job",
+      "jobs:",
+      "  build: # the build job",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs.length, 1);
+      assert.equal(estimate.jobs[0]?.id, "build");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
