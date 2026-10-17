@@ -60,6 +60,15 @@ test("restricted day-of-month and weekday fields use cron union semantics", () =
   );
 });
 
+test("restricted month and weekday fields count calendar dates", () => {
+  // February has a different number of Mondays depending on the year, so
+  // multiplying the independent month and weekday averages overestimates it.
+  assert.equal(
+    Math.round(cronRunsPerDay("0 0 * 2 1") * 146097),
+    1615
+  );
+});
+
 test("all three on: forms parse", () => {
   assert.deepEqual(parseTriggers("on: push\njobs:\n  a:\n").names, ["push"]);
   assert.deepEqual(

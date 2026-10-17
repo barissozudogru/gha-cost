@@ -197,6 +197,24 @@ function dayMonthWeekdayOccurrencesPerDay(
   return occurrences / 146097;
 }
 
+function monthWeekdayOccurrencesPerDay(month: string, dow: string): number {
+  const months = new Set(expandField(month, 1, 12));
+  const weekdays = new Set(expandDayOfWeek(dow));
+  let occurrences = 0;
+
+  for (let year = 2000; year < 2400; year++) {
+    for (let monthNumber = 1; monthNumber <= 12; monthNumber++) {
+      if (!months.has(monthNumber)) continue;
+      const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+      for (let day = 1; day <= daysInMonth; day++) {
+        const weekday = new Date(Date.UTC(year, monthNumber - 1, day)).getUTCDay();
+        if (weekdays.has(weekday)) occurrences++;
+      }
+    }
+  }
+  return occurrences / 146097;
+}
+
 /**
  * Approximate how many times a cron expression fires per day.
  *
@@ -223,6 +241,9 @@ export function cronRunsPerDay(expr: string): number {
   } else if (domRestricted && !dowRestricted) {
     dayFactor = expandField(dom, 1, 31).length / DAYS_PER_MONTH;
   } else if (!domRestricted && dowRestricted) {
+    if (month.trim() !== "*") {
+      return minutes * hours * monthWeekdayOccurrencesPerDay(month, dow);
+    }
     dayFactor = expandDayOfWeek(dow).length / 7;
   } else {
     return minutes * hours * dayMonthWeekdayOccurrencesPerDay(dom, month, dow);
