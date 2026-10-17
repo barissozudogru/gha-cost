@@ -1007,3 +1007,26 @@ jobs:
     }
   });
 });
+
+describe("workflow key parsing", () => {
+  it("parses jobs when the key has a YAML comment", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-commented-jobs-${Date.now()}-${Math.random()}.yml`);
+    const yaml = [
+      "name: Commented jobs",
+      "jobs: # the jobs block",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs.length, 1);
+      assert.equal(estimate.jobs[0]?.id, "build");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+});
