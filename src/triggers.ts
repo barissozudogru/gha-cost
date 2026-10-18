@@ -171,6 +171,17 @@ function dayMonthOccurrencesPerYear(dom: string, month: string): number {
   return occurrences / 365.25;
 }
 
+function monthOccurrencesPerDay(month: string): number {
+  const averageDaysInMonth = [
+    31, 28.25, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
+  ];
+  const months = expandField(month, 1, 12);
+  return months.reduce(
+    (total, selectedMonth) => total + averageDaysInMonth[selectedMonth - 1],
+    0
+  ) / 365.25;
+}
+
 function dayMonthWeekdayOccurrencesPerDay(
   dom: string,
   month: string,
@@ -237,6 +248,9 @@ export function cronRunsPerDay(expr: string): number {
 
   let dayFactor: number;
   if (!domRestricted && !dowRestricted) {
+    if (month.trim() !== "*") {
+      return minutes * hours * monthOccurrencesPerDay(month);
+    }
     dayFactor = 1;
   } else if (domRestricted && !dowRestricted) {
     dayFactor = expandField(dom, 1, 31).length / DAYS_PER_MONTH;

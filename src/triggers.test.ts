@@ -69,6 +69,13 @@ test("restricted month and weekday fields count calendar dates", () => {
   );
 });
 
+test("month-only schedules account for the selected months' day counts", () => {
+  assert.equal(
+    cronRunsPerDay("0 0 * 2 *"),
+    28.25 / 365.25
+  );
+});
+
 test("all three on: forms parse", () => {
   assert.deepEqual(parseTriggers("on: push\njobs:\n  a:\n").names, ["push"]);
   assert.deepEqual(
