@@ -29,6 +29,60 @@ const UNPREDICTABLE = new Set([
   "repository_dispatch",
 ]);
 
+function flowBraceBalance(value: string): number {
+  let balance = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (quote) {
+      if (char === quote && value[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === "{") {
+      balance++;
+    } else if (char === "}") {
+      balance--;
+    }
+  }
+  return balance;
+}
+
+function parseFlowMappingKeys(value: string): string[] {
+  const inner = value.slice(1, -1);
+  const keys: string[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: string | null = null;
+
+  const addKey = (entry: string) => {
+    const match = /^(?:"([a-z_]+)"|'([a-z_]+)'|([a-z_]+))\s*:/.exec(entry.trim());
+    const key = match?.[1] ?? match?.[2] ?? match?.[3];
+    if (key) keys.push(key);
+  };
+
+  for (let i = 0; i < inner.length; i++) {
+    const char = inner[i];
+    if (quote) {
+      if (char === quote && inner[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === "{" || char === "[") {
+      depth++;
+    } else if (char === "}" || char === "]") {
+      depth--;
+    } else if (char === "," && depth === 0) {
+      addKey(inner.slice(start, i));
+      start = i + 1;
+    }
+  }
+  addKey(inner.slice(start));
+  return keys;
+}
+
 /**
  * Parse the top-level `on:` block.
  *
@@ -45,6 +99,8 @@ export function parseTriggers(content: string): WorkflowTriggers {
   // Indent of the first trigger key inside the on: block. Local, so parsing one
   // workflow cannot affect the next.
   let triggerIndent: number | null = null;
+  let flowMapping = "";
+  let flowMappingDepth = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
@@ -70,8 +126,30 @@ export function parseTriggers(content: string): WorkflowTriggers {
           if (name) names.push(name);
         }
         inOnBlock = false;
+      } else if (inline.startsWith("{") && inline.endsWith("}")) {
+        names.push(...parseFlowMappingKeys(inline));
+        inOnBlock = false;
+      } else if (inline.startsWith("{")) {
+        flowMapping = inline;
+        flowMappingDepth = flowBraceBalance(inline);
+        if (flowMappingDepth <= 0) {
+          names.push(...parseFlowMappingKeys(flowMapping));
+          flowMapping = "";
+          inOnBlock = false;
+        }
       } else if (inline) {
         names.push(inline.replace(/^['"]|['"]$/g, ""));
+        inOnBlock = false;
+      }
+      continue;
+    }
+
+    if (flowMapping) {
+      flowMapping += ` ${trimmed}`;
+      flowMappingDepth += flowBraceBalance(trimmed);
+      if (flowMappingDepth <= 0) {
+        names.push(...parseFlowMappingKeys(flowMapping));
+        flowMapping = "";
         inOnBlock = false;
       }
       continue;
