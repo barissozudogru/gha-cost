@@ -86,6 +86,24 @@ test("all three on: forms parse", () => {
   assert.deepEqual(parseTriggers(block).names, ["push", "workflow_dispatch"]);
 });
 
+test("flow-style trigger mappings parse their top-level keys", () => {
+  const triggers = parseTriggers(
+    "on: { push: {}, workflow_dispatch: {} }\njobs:\n  a:\n"
+  );
+  assert.deepEqual(triggers.names, ["push", "workflow_dispatch"]);
+  assert.equal(triggers.hasPushLike, true);
+  assert.equal(triggers.manualOnly, false);
+});
+
+test("multiline flow-style trigger mappings parse their top-level keys", () => {
+  const triggers = parseTriggers(
+    "on: {\n  push: {},\n  workflow_dispatch: {}\n}\njobs:\n  a:\n"
+  );
+  assert.deepEqual(triggers.names, ["push", "workflow_dispatch"]);
+  assert.equal(triggers.hasPushLike, true);
+  assert.equal(triggers.manualOnly, false);
+});
+
 test("nested keys are not mistaken for triggers", () => {
   const wf = ["on:", "  push:", "    branches:", "      - main", "    paths:", "      - src/**", "jobs:"].join("\n");
   const t = parseTriggers(wf);
