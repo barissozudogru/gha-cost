@@ -1050,4 +1050,26 @@ describe("workflow key parsing", () => {
       unlinkSync(tmpFile);
     }
   });
+
+  it("parses job fields when the workflow uses four-space indentation", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-four-space-${Date.now()}.yml`);
+    const yaml = `
+name: Four Space Workflow
+jobs:
+    build:
+      runs-on: windows-latest
+      steps:
+        - uses: actions/checkout@v4
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.runner, "windows");
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.uses, "actions/checkout@v4");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
