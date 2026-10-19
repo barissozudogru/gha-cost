@@ -535,6 +535,23 @@ function detectJobIndent(lines: string[], jobsStart: number): number {
   return 2;
 }
 
+function detectIndentUnit(lines: string[], jobsStart: number, jobIndent: number): number {
+  let foundJob = false;
+  for (let j = jobsStart; j < lines.length; j++) {
+    const line = expandTabs(lines[j]);
+    if (line.trim() === "" || line.trim().startsWith("#")) continue;
+    const indent = getIndent(line);
+    if (!foundJob) {
+      if (indent === jobIndent) foundJob = true;
+      continue;
+    }
+    if (indent > jobIndent) return indent - jobIndent;
+    if (indent === jobIndent) continue;
+    break;
+  }
+  return 2;
+}
+
 /**
  * Check whether a line contains a tab character at the start (before expansion).
  * Used to emit a one-time warning.
@@ -583,14 +600,15 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
   // Detect the indentation unit used under jobs:
   const jobIndent = detectJobIndent(lines, jobsStart);
+  const indentUnit = detectIndentUnit(lines, jobsStart, jobIndent);
   // Children of job entries are one additional indent level deeper
-  const jobChildIndent = jobIndent * 2;
-  const strategyIndent = jobIndent * 3;
-  const matrixIndent = jobIndent * 4;
-  const matrixKeyIndent = jobIndent * 4;
-  const matrixValueIndent = jobIndent * 5;
-  const stepListIndent = jobIndent * 3;
-  const stepPropIndent = jobIndent * 4;
+  const jobChildIndent = jobIndent + indentUnit;
+  const strategyIndent = jobChildIndent + indentUnit;
+  const matrixIndent = strategyIndent + indentUnit;
+  const matrixKeyIndent = matrixIndent;
+  const matrixValueIndent = matrixKeyIndent + indentUnit;
+  const stepListIndent = jobChildIndent + indentUnit;
+  const stepPropIndent = stepListIndent + indentUnit;
 
   let i = jobsStart;
 
