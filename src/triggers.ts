@@ -190,11 +190,14 @@ export function parseTriggers(content: string): WorkflowTriggers {
 /** Expand one cron field into the set of values it matches. */
 function expandField(field: string, min: number, max: number): number[] {
   const out = new Set<number>();
-  for (const part of field.split(",")) {
+  const parts = field.split(",");
+  if (parts.some((part) => part === "")) return [];
+
+  for (const part of parts) {
     const step = /^(.+)\/(\d+)$/.exec(part);
     const body = step ? step[1] : part;
     const stride = step ? parseInt(step[2], 10) : 1;
-    if (stride <= 0) continue;
+    if (stride <= 0) return [];
 
     let lo = min;
     let hi = max;
@@ -203,11 +206,13 @@ function expandField(field: string, min: number, max: number): number[] {
       if (range) {
         lo = parseInt(range[1], 10);
         hi = parseInt(range[2], 10);
+        if (lo < min || hi > max || lo > hi) return [];
       } else if (/^\d+$/.test(body)) {
         lo = parseInt(body, 10);
         hi = step ? max : lo;
+        if (lo < min || lo > max) return [];
       } else {
-        continue;
+        return [];
       }
     }
     for (let v = lo; v <= hi; v += stride) {
@@ -322,27 +327,39 @@ export function cronRunsPerDay(expr: string): number {
   if (minutes === 0 || hours === 0) return 0;
 
   const domRestricted = dom.trim() !== "*";
+  const domValues = expandField(dom, 1, 31);
   const dowRestricted = dow.trim() !== "*";
+  const dowValues = expandDayOfWeek(dow);
+  const monthRestricted = month.trim() !== "*";
+  const monthValues = expandField(month, 1, 12);
+
+  if (
+    (domRestricted && domValues.length === 0) ||
+    (dowRestricted && dowValues.length === 0) ||
+    (monthRestricted && monthValues.length === 0)
+  ) {
+    return 0;
+  }
 
   let dayFactor: number;
   if (!domRestricted && !dowRestricted) {
-    if (month.trim() !== "*") {
+    if (monthRestricted) {
       return minutes * hours * monthOccurrencesPerDay(month);
     }
     dayFactor = 1;
   } else if (domRestricted && !dowRestricted) {
-    dayFactor = expandField(dom, 1, 31).length / DAYS_PER_MONTH;
+    dayFactor = domValues.length / DAYS_PER_MONTH;
   } else if (!domRestricted && dowRestricted) {
-    if (month.trim() !== "*") {
+    if (monthRestricted) {
       return minutes * hours * monthWeekdayOccurrencesPerDay(month, dow);
     }
-    dayFactor = expandDayOfWeek(dow).length / 7;
+    dayFactor = dowValues.length / 7;
   } else {
     return minutes * hours * dayMonthWeekdayOccurrencesPerDay(dom, month, dow);
   }
 
   const monthFactor =
-    month.trim() === "*" ? 1 : expandField(month, 1, 12).length / 12;
+    monthRestricted ? monthValues.length / 12 : 1;
 
   // A restricted day-of-month and month must be counted as pairs when
   // day-of-week is unrestricted. For example, February 31 never fires, and

@@ -27,6 +27,12 @@ test("a malformed cron contributes nothing rather than guessing", () => {
   assert.equal(cronRunsPerDay("0 3 * *"), 0);
 });
 
+test("an out-of-range cron field contributes nothing rather than being clipped", () => {
+  assert.equal(cronRunsPerDay("0 3 1-32 * *"), 0);
+  assert.equal(cronRunsPerDay("0 3 1-32 * 1"), 0);
+  assert.equal(cronRunsPerDay("0 3 1 * 1-8"), 0);
+});
+
 test("an impossible day of month contributes no runs", () => {
   assert.equal(cronRunsPerDay("0 0 31 2 *"), 0);
   assert.equal(
