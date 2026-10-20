@@ -201,7 +201,12 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
     } else if (arg === "--json") {
       json = true;
     } else if (arg === "--file" || arg === "-f") {
-      file = args[++i];
+      const path = args[i + 1];
+      if (!path || path.startsWith("-")) {
+        throw new Error(`${arg} requires a path`);
+      }
+      file = path;
+      i++;
     } else if (arg === "--pushes" || arg === "-p") {
       const raw = args[++i] ?? "";
       const parsed = Number(raw);
