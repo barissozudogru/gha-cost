@@ -19,6 +19,18 @@ describe("COST_RATES", () => {
 });
 
 describe("CLI push frequency", () => {
+  it("rejects a missing --file path instead of treating the next flag as a filename", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "--file", "--json"],
+      { encoding: "utf-8" }
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--file requires a path/);
+    assert.equal(result.stdout, "");
+  });
+
   it("honors an explicit zero push rate", () => {
     const tmpFile = join(tmpdir(), `test-workflow-zero-pushes-${Date.now()}.yml`);
     const yaml = `
