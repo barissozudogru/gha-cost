@@ -155,14 +155,31 @@ export function parseTriggers(content: string): WorkflowTriggers {
       continue;
     }
 
-    // Inside the on: block until a line returns to its indent level or less.
-    if (indent <= onIndent) break;
-
     const cron = /^-\s*cron:\s*(.+)$/.exec(trimmed);
     if (cron) {
       crons.push(cron[1].trim().replace(/^['"]|['"]$/g, ""));
       continue;
     }
+
+    // Block sequences are also valid YAML for `on`, for example:
+    //
+    //   on:
+    //     - push
+    //     - workflow_dispatch
+    const sequenceItem = /^-\s*(?:"([a-z_]+)"|'([a-z_]+)'|([a-z_]+))\s*$/.exec(trimmed);
+    if (
+      sequenceItem &&
+      indent >= onIndent &&
+      (triggerIndent === null || indent === triggerIndent)
+    ) {
+      if (triggerIndent === null) triggerIndent = indent;
+      const triggerName = sequenceItem[1] ?? sequenceItem[2] ?? sequenceItem[3];
+      if (triggerName && !names.includes(triggerName)) names.push(triggerName);
+      continue;
+    }
+
+    // Inside the on: block until a line returns to its indent level or less.
+    if (indent <= onIndent) break;
 
     // A trigger name is a key at the first level inside on:. Nested keys such
     // as branches: or paths: sit deeper and must not be read as triggers.
