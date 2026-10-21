@@ -208,7 +208,15 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       file = path;
       i++;
     } else if (arg === "--pushes" || arg === "-p") {
-      const raw = args[++i] ?? "";
+      const raw = args[i + 1];
+      const nextIsOption = raw === "--help" || raw === "-h" ||
+        raw === "--version" || raw === "-v" || raw === "--json" ||
+        raw === "--file" || raw === "-f" || raw === "--pushes" ||
+        raw === "-p" || raw === "--self-hosted-rate";
+      if (!raw || nextIsOption) {
+        throw new Error(`${arg} requires a number`);
+      }
+      i++;
       const parsed = Number(raw);
       if (/^\d+$/.test(raw) && Number.isSafeInteger(parsed)) {
         pushes = parsed;
