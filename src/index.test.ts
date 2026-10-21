@@ -19,6 +19,18 @@ describe("COST_RATES", () => {
 });
 
 describe("CLI push frequency", () => {
+  it("rejects a missing --pushes value instead of consuming the next flag", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "--file", "README.md", "--pushes", "--json"],
+      { encoding: "utf-8" }
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--pushes requires a number/);
+    assert.equal(result.stdout, "");
+  });
+
   it("rejects a missing --file path instead of treating the next flag as a filename", () => {
     const result = spawnSync(
       process.execPath,
@@ -75,6 +87,33 @@ jobs:
       const result = spawnSync(
         process.execPath,
         [join(process.cwd(), "dist", "cli.js"), "--file", tmpFile, "--pushes", "20oops", "--json"],
+        { encoding: "utf-8" }
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const estimates = JSON.parse(result.stdout) as Array<{ runsPerDay: number }>;
+      assert.equal(estimates[0]?.runsPerDay, 10);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("ignores a negative push rate instead of reporting it as missing", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-negative-pushes-${Date.now()}.yml`);
+    const yaml = `
+name: Negative Pushes Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), "--file", tmpFile, "--pushes", "-1", "--json"],
         { encoding: "utf-8" }
       );
       assert.equal(result.status, 0, result.stderr);
