@@ -90,7 +90,7 @@ function parseFlowMappingKeys(value: string): string[] {
  * sequence (`on: [push, pull_request]`), and a block mapping with nested keys.
  */
 export function parseTriggers(content: string): WorkflowTriggers {
-  const lines = content.split("\n");
+  const lines = content.replace(/^\uFEFF/, "").split("\n");
   const names: string[] = [];
   const crons: string[] = [];
 
