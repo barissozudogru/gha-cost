@@ -561,7 +561,7 @@ function hasLeadingTab(line: string): boolean {
 }
 
 function parseWorkflowYaml(content: string): RawWorkflow {
-  const rawLines = content.split("\n");
+  const rawLines = content.replace(/^\uFEFF/, "").split("\n");
 
   // Warn once if tabs are used for indentation
   const tabLine = rawLines.findIndex(hasLeadingTab);
