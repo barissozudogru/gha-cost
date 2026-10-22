@@ -222,7 +222,13 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
         pushes = parsed;
       }
     } else if (arg === "--self-hosted-rate") {
-      const raw = args[++i] ?? "";
+      const raw = args[i + 1];
+      const nextIsOption = raw === "--" ||
+        (raw?.startsWith("-") && Number.isNaN(Number(raw)));
+      if (!raw || nextIsOption) {
+        throw new Error(`${arg} requires a number`);
+      }
+      i++;
       const val = Number(raw);
       if (raw.trim() !== "" && Number.isFinite(val) && val >= 0) selfHostedRate = val;
     } else if (!arg.startsWith("-")) {
