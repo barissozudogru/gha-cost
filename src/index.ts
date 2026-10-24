@@ -615,8 +615,8 @@ function parseWorkflowYaml(content: string): RawWorkflow {
   for (let j = 0; j < lines.length; j++) {
     const line = lines[j];
     if (/^name:\s*/.test(line)) {
-      workflow.name = stripInlineComment(
-        line.replace(/^name:\s*/, "").replace(/^['"]|['"]$/g, "")
+      workflow.name = stripOuterQuotes(
+        stripInlineComment(line.replace(/^name:\s*/, ""))
       );
       break;
     }
@@ -691,8 +691,8 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
         // Job name override - at jobChildIndent
         if (jobLineIndent === jobChildIndent && /^name:\s*/.test(jobLine.trimStart())) {
-          job.name = stripInlineComment(
-            jobLine.trimStart().replace(/^name:\s*/, "").replace(/^['"]|['"]$/g, "")
+          job.name = stripOuterQuotes(
+            stripInlineComment(jobLine.trimStart().replace(/^name:\s*/, ""))
           );
           i++;
           continue;

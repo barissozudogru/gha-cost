@@ -1164,6 +1164,28 @@ jobs:
     }
   });
 
+  it("preserves hashes inside quoted workflow and job names", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-names-${Date.now()}.yml`);
+    const yaml = [
+      'name: "Build #1"',
+      "jobs:",
+      "  build:",
+      '    name: "Job #1"',
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.workflowName, "Build #1");
+      assert.equal(estimate.jobs[0]?.name, "Job #1");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("preserves hashes inside quoted step commands", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-hash-${Date.now()}.yml`);
     const yaml = [
