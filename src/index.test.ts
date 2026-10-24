@@ -929,6 +929,86 @@ jobs:
       4
     );
   });
+
+  it("resolves quoted keys in matrix include entries", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-quoted-include-key",
+      `
+name: Matrix Quoted Include Key Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          - "os": macos-latest
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.estimatedCostUsd, 0.006 + 0.062);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("resolves quoted keys in matrix exclude entries", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-quoted-exclude-key",
+      `
+name: Matrix Quoted Exclude Key Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        exclude:
+          - "os": macos-latest
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0].matrixCombinations, 1);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("resolves quoted keys in inline matrix include and exclude objects", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-quoted-inline-objects",
+      `
+name: Matrix Quoted Inline Objects Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        exclude: [{ "os": macos-latest }]
+        include: [{ "os": windows-latest }]
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0].matrixCombinations, 2);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("step duration heuristics", () => {
