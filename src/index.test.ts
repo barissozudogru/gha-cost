@@ -1164,6 +1164,26 @@ jobs:
     }
   });
 
+  it("preserves hashes inside quoted step commands", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-hash-${Date.now()}.yml`);
+    const yaml = [
+      "name: Quoted Hash",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - name: Show hash",
+      '        run: echo "hello # world"',
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      assert.equal(estimateWorkflow(tmpFile, 10).jobs[0]?.steps[0]?.run, 'echo "hello # world"');
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses job fields when the workflow uses four-space indentation", () => {
     const tmpFile = join(tmpdir(), `test-workflow-four-space-${Date.now()}.yml`);
     const yaml = `
