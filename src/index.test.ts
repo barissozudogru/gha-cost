@@ -1184,6 +1184,26 @@ jobs:
     }
   });
 
+  it("removes YAML quotes from inline run commands", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-inline-quoted-run-${Date.now()}.yml`);
+    const yaml = `
+name: Inline Quoted Run Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: 'echo "hello"'
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, 'echo "hello"');
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses job fields when the workflow uses four-space indentation", () => {
     const tmpFile = join(tmpdir(), `test-workflow-four-space-${Date.now()}.yml`);
     const yaml = `

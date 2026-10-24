@@ -828,7 +828,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               const keyMatch = inlineKey.match(/^(name|uses|run):\s*(.*)/);
               if (keyMatch) {
                 const key = keyMatch[1] as "name" | "uses" | "run";
-                let val = stripInlineComment(keyMatch[2]);
+                let val = stripOuterQuotes(stripInlineComment(keyMatch[2]));
                 let consumedBlock = false;
                 if (key === "run" && /^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
                   consumedBlock = true;
