@@ -407,8 +407,7 @@ export function estimateRunsPerDay(
 ): FrequencyEstimate {
   const parts: string[] = [];
   let total = 0;
-  const validPushesPerDay = Number.isFinite(pushesPerDay) &&
-    pushesPerDay <= Number.MAX_SAFE_INTEGER
+  const validPushesPerDay = Number.isSafeInteger(pushesPerDay)
     ? Math.max(0, pushesPerDay)
     : 0;
 

@@ -190,6 +190,13 @@ test("unsafe push rates do not produce imprecise workflow frequency", () => {
   assert.equal(estimate.basis, "no known cadence");
 });
 
+test("fractional push rates do not produce fractional trigger counts", () => {
+  const pushed = parseTriggers("on: push\njobs:\n  a:\n");
+  const estimate = estimateRunsPerDay(pushed, 1.5);
+  assert.equal(estimate.runsPerDay, 0);
+  assert.equal(estimate.basis, "no known cadence");
+});
+
 test("push and schedule together are added", () => {
   const wf = ["on:", "  push:", "  schedule:", "    - cron: '0 3 * * *'", "jobs:"].join("\n");
   assert.equal(estimateRunsPerDay(parseTriggers(wf), 10).runsPerDay, 11);
