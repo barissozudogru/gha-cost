@@ -183,6 +183,13 @@ test("non-finite push rates do not produce invalid workflow frequency", () => {
   assert.equal(estimate.basis, "no known cadence");
 });
 
+test("unsafe push rates do not produce imprecise workflow frequency", () => {
+  const pushed = parseTriggers("on: push\njobs:\n  a:\n");
+  const estimate = estimateRunsPerDay(pushed, Number.MAX_SAFE_INTEGER + 1);
+  assert.equal(estimate.runsPerDay, 0);
+  assert.equal(estimate.basis, "no known cadence");
+});
+
 test("push and schedule together are added", () => {
   const wf = ["on:", "  push:", "  schedule:", "    - cron: '0 3 * * *'", "jobs:"].join("\n");
   assert.equal(estimateRunsPerDay(parseTriggers(wf), 10).runsPerDay, 11);
