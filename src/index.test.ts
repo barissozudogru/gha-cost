@@ -1213,6 +1213,26 @@ jobs:
     }
   });
 
+  it("preserves hashes inside quoted runner labels", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-runner-hash-${Date.now()}.yml`);
+    const yaml = `
+name: Hash Runner Test
+jobs:
+  build:
+    runs-on: "self-hosted #gpu"
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.runnerLabel, "self-hosted #gpu");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("removes YAML quotes from inline run commands", () => {
     const tmpFile = join(tmpdir(), `test-workflow-inline-quoted-run-${Date.now()}.yml`);
     const yaml = `
