@@ -388,10 +388,42 @@ function expandTabs(line: string): string {
 }
 
 function stripInlineComment(value: string): string {
-  // Remove inline YAML comments (but not inside quoted strings - simple heuristic)
-  const hashIdx = value.indexOf(" #");
-  if (hashIdx !== -1) return value.slice(0, hashIdx).trim();
+  // A hash starts a YAML comment only outside a quoted scalar.
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (quote === "'") {
+      if (char === "'" && value[i + 1] === "'") {
+        i++;
+      } else if (char === "'") {
+        quote = null;
+      }
+      continue;
+    }
+    if (quote === '"') {
+      if (char === "\\") {
+        i++;
+      } else if (char === '"') {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === "#" && (i === 0 || /\s/.test(value[i - 1]))) {
+      return value.slice(0, i).trim();
+    }
+  }
   return value.trim();
+}
+
+function stripOuterQuotes(value: string): string {
+  const first = value[0];
+  const last = value[value.length - 1];
+  if ((first === "'" || first === '"') && last === first) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 function parseMatrixValues(lines: string[], startIndex: number, indent: number): string[] {
@@ -830,7 +862,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 .match(/^(name|uses|run):\s*(.*)/);
               if (propMatch) {
                 const key = propMatch[1] as "name" | "uses" | "run";
-                let val = stripInlineComment(propMatch[2]).replace(/^['"]|['"]$/g, "");
+                let val = stripOuterQuotes(stripInlineComment(propMatch[2]));
 
                 // Handle multi-line run blocks (pipe | or folded > with optional chomping or indent indicator)
                 if (/^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
