@@ -361,8 +361,29 @@ jobs:
       // at $0.062, not 60/60 minutes at the ubuntu rate the summary once
       // applied to raw seconds.
       assert.equal(estimate.jobs[0].estimatedCostUsdHigh, 0.062);
-      assert.equal(estimate.totalEstimatedCostPerRunLow, 0);
+      assert.equal(estimate.totalEstimatedCostPerRunLow, 0.062);
       assert.equal(estimate.totalEstimatedCostPerRunHigh, 0.062);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("bills a zero-second lower bound for the minimum job minute", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-minimum-minute-${Date.now()}.yml`);
+    const yaml = `
+name: Minimum Minute Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Do thing
+        run: ./script.sh
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0].estimatedCostUsdLow, 0.006);
     } finally {
       unlinkSync(tmpFile);
     }
