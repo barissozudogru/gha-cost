@@ -172,7 +172,10 @@ function rateFor(runner: RunnerType, selfHostedRate?: number): number {
 }
 
 function roundUpToMinute(seconds: number): number {
-  return Math.ceil(seconds / BILLING_INCREMENT_SECONDS) * BILLING_INCREMENT_SECONDS;
+  return Math.max(
+    BILLING_INCREMENT_SECONDS,
+    Math.ceil(seconds / BILLING_INCREMENT_SECONDS) * BILLING_INCREMENT_SECONDS
+  );
 }
 
 function calculateJobCost(
