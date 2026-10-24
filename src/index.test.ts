@@ -962,6 +962,13 @@ describe("step duration heuristics", () => {
       { low: 5, high: 45 }
     );
   });
+
+  it("does not treat commands beginning with test as npm test runs", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Run testing", undefined, "npm run testing"),
+      { low: 0, high: 60 }
+    );
+  });
 });
 
 describe("estimated ranges against measured runs", () => {
