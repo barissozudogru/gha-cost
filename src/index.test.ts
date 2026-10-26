@@ -1078,6 +1078,34 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("parses indentless base matrix value lists", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-indentless-values",
+      `
+name: Indentless Matrix Values Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os:
+        - ubuntu-latest
+        - macos-latest
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.estimatedCostUsd, 0.006 + 0.062);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("step duration heuristics", () => {
