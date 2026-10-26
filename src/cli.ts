@@ -212,7 +212,8 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       const nextIsOption = raw === "--help" || raw === "-h" ||
         raw === "--version" || raw === "-v" || raw === "--json" ||
         raw === "--file" || raw === "-f" || raw === "--pushes" ||
-        raw === "-p" || raw === "--self-hosted-rate";
+        raw === "-p" || raw === "--self-hosted-rate" ||
+        (raw?.startsWith("-") && Number.isNaN(Number(raw)));
       if (!raw || nextIsOption) {
         throw new Error(`${arg} requires a number`);
       }
