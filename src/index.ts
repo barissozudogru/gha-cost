@@ -753,7 +753,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     const parsed = parseMatrixIncludeExclude(
                       lines,
                       i,
-                      matrixKeyIndent + 1
+                      matrixKeyIndent
                     );
                     if (parsed.values.length > 0) {
                       job.matrix.push({ key, values: parsed.values });
