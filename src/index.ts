@@ -708,7 +708,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         }
 
         // strategy: - at jobChildIndent
-        if (jobLineIndent === jobChildIndent && /^strategy:\s*$/.test(jobLine.trimStart())) {
+        if (jobLineIndent === jobChildIndent && /^strategy:\s*(?:#.*)?$/.test(jobLine.trimStart())) {
           i++;
           while (i < lines.length) {
             const stratLine = lines[i];
@@ -720,7 +720,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
             if (
               getIndent(stratLine) === strategyIndent &&
-              /^matrix:\s*$/.test(stratLine.trimStart())
+              /^matrix:\s*(?:#.*)?$/.test(stratLine.trimStart())
             ) {
               i++;
               while (i < lines.length) {
