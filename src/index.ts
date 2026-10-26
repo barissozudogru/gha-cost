@@ -761,7 +761,19 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     i = parsed.nextIndex;
                     continue;
                   }
-                  const values = parseMatrixValues(lines, i, matrixValueIndent);
+                  let valueIndent = matrixValueIndent;
+                  for (let j = i; j < lines.length; j++) {
+                    const valueLine = lines[j];
+                    if (valueLine.trim() === "" || valueLine.trim().startsWith("#")) continue;
+                    if (
+                      getIndent(valueLine) >= matrixKeyIndent &&
+                      valueLine.trimStart().startsWith("- ")
+                    ) {
+                      valueIndent = getIndent(valueLine);
+                    }
+                    break;
+                  }
+                  const values = parseMatrixValues(lines, i, valueIndent);
                   // Advance i past the list items
                   while (i < lines.length) {
                     const vl = lines[i];
@@ -770,7 +782,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                       continue;
                     }
                     if (
-                      getIndent(vl) < matrixValueIndent ||
+                      getIndent(vl) < valueIndent ||
                       !vl.trimStart().startsWith("- ")
                     )
                       break;
