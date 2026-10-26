@@ -1048,6 +1048,36 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("parses indentless matrix include lists", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-indentless-include",
+      `
+name: Indentless Matrix Include Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+        - os: macos-latest
+    runs-on: \${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install
+        run: npm ci
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.estimatedCostUsd, 2 * 0.006 + 2 * 0.062);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("step duration heuristics", () => {
