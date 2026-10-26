@@ -1348,6 +1348,27 @@ jobs:
     }
   });
 
+  it("parses steps when the steps key has a YAML comment", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-commented-steps-${Date.now()}-${Math.random()}.yml`);
+    const yaml = [
+      "name: Commented steps",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps: # the steps block",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, "echo ok");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("preserves hashes inside quoted workflow and job names", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-names-${Date.now()}.yml`);
     const yaml = [

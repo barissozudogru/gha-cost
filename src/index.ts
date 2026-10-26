@@ -805,7 +805,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         }
 
         // steps: - at jobChildIndent
-        if (jobLineIndent === jobChildIndent && /^steps:\s*$/.test(jobLine.trimStart())) {
+        if (jobLineIndent === jobChildIndent && /^steps:\s*(?:#.*)?$/.test(jobLine.trimStart())) {
           i++;
           let currentStep: Partial<RawStep> | null = null;
 
