@@ -31,6 +31,18 @@ describe("CLI push frequency", () => {
     assert.equal(result.stdout, "");
   });
 
+  it("rejects an unknown option instead of consuming it as --pushes", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "--file", "README.md", "--pushes", "--unknown-option"],
+      { encoding: "utf-8" }
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--pushes requires a number/);
+    assert.equal(result.stdout, "");
+  });
+
   it("rejects a missing --file path instead of treating the next flag as a filename", () => {
     const result = spawnSync(
       process.execPath,
