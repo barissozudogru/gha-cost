@@ -214,7 +214,10 @@ function expandField(field: string, min: number, max: number): number[] {
     const step = /^(.+)\/(\d+)$/.exec(part);
     const body = step ? step[1] : part;
     const stride = step ? parseInt(step[2], 10) : 1;
-    if (stride <= 0) return [];
+    // Cron steps cannot exceed the field's representable span. Without this
+    // boundary check, malformed values such as `*/60` in the minute field
+    // silently become a valid-looking match for the field's first value.
+    if (stride <= 0 || (step && stride > max - min)) return [];
 
     let lo = min;
     let hi = max;

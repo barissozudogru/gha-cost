@@ -33,6 +33,11 @@ test("an out-of-range cron field contributes nothing rather than being clipped",
   assert.equal(cronRunsPerDay("0 3 1 * 1-8"), 0);
 });
 
+test("a cron step larger than its field range contributes nothing", () => {
+  assert.equal(cronRunsPerDay("*/60 * * * *"), 0);
+  assert.equal(cronRunsPerDay("0 */24 * * *"), 0);
+});
+
 test("an impossible day of month contributes no runs", () => {
   assert.equal(cronRunsPerDay("0 0 31 2 *"), 0);
   assert.equal(
