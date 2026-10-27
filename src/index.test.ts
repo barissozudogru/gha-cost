@@ -55,6 +55,18 @@ describe("CLI push frequency", () => {
     assert.equal(result.stdout, "");
   });
 
+  it("rejects an unknown option instead of silently ignoring it", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "--file", "README.md", "--unknown-option", "--json"],
+      { encoding: "utf-8" }
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /Unknown option: --unknown-option/);
+    assert.equal(result.stdout, "");
+  });
+
   for (const option of ["--json", "--unknown-option", "--"]) {
     it(`rejects a missing --self-hosted-rate before ${option}`, () => {
       const result = spawnSync(

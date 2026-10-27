@@ -232,6 +232,8 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       i++;
       const val = Number(raw);
       if (raw.trim() !== "" && Number.isFinite(val) && val >= 0) selfHostedRate = val;
+    } else if (arg.startsWith("-")) {
+      throw new Error(`Unknown option: ${arg}`);
     } else if (!arg.startsWith("-")) {
       // Positional argument treated as file path
       file = arg;
