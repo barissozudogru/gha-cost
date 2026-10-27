@@ -1297,6 +1297,26 @@ jobs:
 });
 
 describe("workflow key parsing", () => {
+  it("parses a quoted top-level workflow name", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-name-${Date.now()}.yml`);
+    const yaml = [
+      '"name": Quoted Workflow',
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.workflowName, "Quoted Workflow");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses quoted job identifiers", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-job-${Date.now()}.yml`);
     const yaml = `
