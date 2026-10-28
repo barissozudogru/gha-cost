@@ -1326,6 +1326,61 @@ jobs:
 });
 
 describe("workflow key parsing", () => {
+  it("parses quoted step keys", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-step-keys-${Date.now()}.yml`);
+    const yaml = `
+name: Quoted Step Keys
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - "name": Checkout
+        "uses": actions/checkout@v4
+      - "run": npm test
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.steps.length, 2);
+      assert.equal(estimate.jobs[0]?.steps[0]?.name, "Checkout");
+      assert.equal(estimate.jobs[0]?.steps[0]?.uses, "actions/checkout@v4");
+      assert.equal(estimate.jobs[0]?.steps[1]?.run, "npm test");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("parses quoted indented step keys and block run scalars", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-block-step-keys-${Date.now()}.yml`);
+    const yaml = `
+name: Quoted Block Step Keys
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install and build
+        "run": |
+          npm ci
+          npm run build
+      - name: Test
+        'run': >
+          npm test
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.steps.length, 2);
+      assert.equal(estimate.jobs[0]?.steps[0]?.name, "Install and build");
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, "npm ci npm run build");
+      assert.equal(estimate.jobs[0]?.steps[1]?.name, "Test");
+      assert.equal(estimate.jobs[0]?.steps[1]?.run, "npm test");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses a quoted job runner key", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-runs-on-${Date.now()}.yml`);
     const yaml = `
