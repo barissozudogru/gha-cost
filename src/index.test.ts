@@ -1326,6 +1326,26 @@ jobs:
 });
 
 describe("workflow key parsing", () => {
+  it("parses a quoted job runner key", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-runs-on-${Date.now()}.yml`);
+    const yaml = `
+name: Quoted Runner Key Test
+jobs:
+  build:
+    "runs-on": windows-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.runner, "windows");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses a quoted top-level jobs key", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-jobs-${Date.now()}.yml`);
     const yaml = `
