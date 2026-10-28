@@ -690,9 +690,14 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         if (jobLineIndent <= jobIndent) break;
 
         // Job name override - at jobChildIndent
-        if (jobLineIndent === jobChildIndent && /^name:\s*/.test(jobLine.trimStart())) {
+        if (
+          jobLineIndent === jobChildIndent &&
+          /^(?:name|"name"|'name')\s*:\s*/.test(jobLine.trimStart())
+        ) {
           job.name = stripOuterQuotes(
-            stripInlineComment(jobLine.trimStart().replace(/^name:\s*/, ""))
+            stripInlineComment(
+              jobLine.trimStart().replace(/^(?:name|"name"|'name')\s*:\s*/, "")
+            )
           );
           i++;
           continue;
