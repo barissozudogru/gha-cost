@@ -1467,6 +1467,26 @@ name: Quoted Jobs Test
     }
   });
 
+  it("parses a top-level workflow name with whitespace before the colon", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-spaced-name-${Date.now()}.yml`);
+    const yaml = [
+      "name : Spaced Workflow",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.workflowName, "Spaced Workflow");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses quoted job identifiers", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-job-${Date.now()}.yml`);
     const yaml = `
