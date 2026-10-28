@@ -842,10 +842,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
               // Check for inline key on same line as dash: "- uses: actions/checkout@v4"
               const inlineKey = stepLine.trimStart().replace(/^-\s+/, "");
-              const keyMatch = inlineKey.match(/^(name|uses|run):\s*(.*)/);
+              const keyMatch = inlineKey.match(
+                /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run)):\s*(.*)/
+              );
               if (keyMatch) {
-                const key = keyMatch[1] as "name" | "uses" | "run";
-                let val = stripOuterQuotes(stripInlineComment(keyMatch[2]));
+                const key = (keyMatch[1] ?? keyMatch[2] ?? keyMatch[3]) as "name" | "uses" | "run";
+                let val = stripOuterQuotes(stripInlineComment(keyMatch[4]));
                 let consumedBlock = false;
                 if (key === "run" && /^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
                   consumedBlock = true;
@@ -876,10 +878,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
             if (stepIndent === stepPropIndent && currentStep !== null) {
               const propMatch = stepLine
                 .trimStart()
-                .match(/^(name|uses|run):\s*(.*)/);
+                .match(
+                  /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run)):\s*(.*)/
+                );
               if (propMatch) {
-                const key = propMatch[1] as "name" | "uses" | "run";
-                let val = stripOuterQuotes(stripInlineComment(propMatch[2]));
+                const key = (propMatch[1] ?? propMatch[2] ?? propMatch[3]) as "name" | "uses" | "run";
+                let val = stripOuterQuotes(stripInlineComment(propMatch[4]));
 
                 // Handle multi-line run blocks (pipe | or folded > with optional chomping or indent indicator)
                 if (/^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
