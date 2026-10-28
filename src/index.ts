@@ -614,9 +614,9 @@ function parseWorkflowYaml(content: string): RawWorkflow {
   // Extract top-level name
   for (let j = 0; j < lines.length; j++) {
     const line = lines[j];
-    if (/^(?:name|"name"|'name'):\s*/.test(line)) {
+    if (/^(?:name|"name"|'name')\s*:\s*/.test(line)) {
       workflow.name = stripOuterQuotes(
-        stripInlineComment(line.replace(/^(?:name|"name"|'name'):\s*/, ""))
+        stripInlineComment(line.replace(/^(?:name|"name"|'name')\s*:\s*/, ""))
       );
       break;
     }
