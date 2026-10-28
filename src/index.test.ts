@@ -1401,6 +1401,31 @@ jobs:
     }
   });
 
+  it("parses quoted job name keys with whitespace before the colon", () => {
+    const cases = ["\"name\" : Compile", "'name' : Test"];
+
+    for (const [index, nameLine] of cases.entries()) {
+      const tmpFile = join(tmpdir(), `test-workflow-quoted-job-name-${Date.now()}-${index}.yml`);
+      const yaml = `
+name: Quoted Job Name Test
+jobs:
+  build:
+    ${nameLine}
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+      writeFileSync(tmpFile, yaml, "utf-8");
+
+      try {
+        const estimate = estimateWorkflow(tmpFile, 10);
+        assert.equal(estimate.jobs[0]?.name, index === 0 ? "Compile" : "Test");
+      } finally {
+        unlinkSync(tmpFile);
+      }
+    }
+  });
+
   it("parses a quoted top-level jobs key", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-jobs-${Date.now()}.yml`);
     const yaml = `
