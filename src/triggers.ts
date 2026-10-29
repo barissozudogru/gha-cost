@@ -113,7 +113,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
     if (!inOnBlock) {
       // `on:` at column 0. Quoted forms appear because YAML 1.1 reads a bare
       // `on` as boolean true, so some workflows write "on" or 'on'.
-      const m = /^(?:on|"on"|'on'|true):\s*(.*)$/.exec(trimmed);
+      const m = /^(?:on|"on"|'on'|true)\s*:\s*(.*)$/.exec(trimmed);
       if (!m || indent !== 0) continue;
 
       inOnBlock = true;
