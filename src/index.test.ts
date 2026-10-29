@@ -1243,6 +1243,15 @@ describe("cache detection", () => {
     assert.equal(detectsCachingForTest(wf), true);
   });
 
+  it("finds cache: when the setup action value is quoted", () => {
+    const wf = [
+      "jobs:", "  a:", "    steps:",
+      "      - uses: \"actions/setup-node@v4\"",
+      "        with:", "          cache: npm",
+    ].join("\n");
+    assert.equal(detectsCachingForTest(wf), true);
+  });
+
   it("finds an explicit actions/cache step", () => {
     assert.equal(detectsCachingForTest("      - uses: actions/cache@v4\n"), true);
   });
