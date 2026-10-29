@@ -848,7 +848,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               // Check for inline key on same line as dash: "- uses: actions/checkout@v4"
               const inlineKey = stepLine.trimStart().replace(/^-\s+/, "");
               const keyMatch = inlineKey.match(
-                /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run)):\s*(.*)/
+                /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run))\s*:\s*(.*)/
               );
               if (keyMatch) {
                 const key = (keyMatch[1] ?? keyMatch[2] ?? keyMatch[3]) as "name" | "uses" | "run";
@@ -884,7 +884,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               const propMatch = stepLine
                 .trimStart()
                 .match(
-                  /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run)):\s*(.*)/
+                  /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run))\s*:\s*(.*)/
                 );
               if (propMatch) {
                 const key = (propMatch[1] ?? propMatch[2] ?? propMatch[3]) as "name" | "uses" | "run";
