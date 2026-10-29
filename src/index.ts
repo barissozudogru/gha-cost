@@ -94,13 +94,13 @@ const GENERIC_STEP = { low: 0, high: 60 };
  */
 export function detectsCaching(content: string): boolean {
   const lines = content.split("\n");
-  if (lines.some((line) => /uses:\s*actions\/cache/i.test(stripInlineComment(line)))) {
+  if (lines.some((line) => /uses:\s*["']?actions\/cache/i.test(stripInlineComment(line)))) {
     return true;
   }
   // `cache:` must be nested under the same setup-* step, not a later action.
   for (let i = 0; i < lines.length; i++) {
     const setupLine = stripInlineCommentPreservingIndent(lines[i]);
-    const setup = /^(\s*)(?:-\s*)?uses:\s*actions\/setup-[a-z]+(?:@|\s|$)/i.exec(setupLine);
+    const setup = /^(\s*)(?:-\s*)?uses:\s*["']?actions\/setup-[a-z]+(?:@|\s|["']|$)/i.exec(setupLine);
     if (!setup) continue;
 
     const setupIndent = setup[1].length;
