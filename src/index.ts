@@ -93,11 +93,14 @@ const GENERIC_STEP = { low: 0, high: 60 };
  * `npm ci` measured 24s against 45s assumed for a cold one.
  */
 export function detectsCaching(content: string): boolean {
-  if (/uses:\s*actions\/cache/i.test(content)) return true;
-  // `cache:` must be nested under the same setup-* step, not a later action.
   const lines = content.split("\n");
+  if (lines.some((line) => /uses:\s*actions\/cache/i.test(stripInlineComment(line)))) {
+    return true;
+  }
+  // `cache:` must be nested under the same setup-* step, not a later action.
   for (let i = 0; i < lines.length; i++) {
-    const setup = /^(\s*)(?:-\s*)?uses:\s*actions\/setup-[a-z]+(?:@|\s|$)/i.exec(lines[i]);
+    const setupLine = stripInlineCommentPreservingIndent(lines[i]);
+    const setup = /^(\s*)(?:-\s*)?uses:\s*actions\/setup-[a-z]+(?:@|\s|$)/i.exec(setupLine);
     if (!setup) continue;
 
     const setupIndent = setup[1].length;
@@ -114,7 +117,7 @@ export function detectsCaching(content: string): boolean {
     }
 
     for (let j = i + 1; j < lines.length; j++) {
-      const line = lines[j];
+      const line = stripInlineCommentPreservingIndent(lines[j]);
       if (line.trim() === "" || line.trim().startsWith("#")) continue;
       const indent = line.length - line.trimStart().length;
       if (indent <= stepIndent && /^-\s/.test(line.trimStart())) break;
@@ -415,6 +418,11 @@ function stripInlineComment(value: string): string {
     }
   }
   return value.trim();
+}
+
+function stripInlineCommentPreservingIndent(value: string): string {
+  const indentation = value.match(/^\s*/)?.[0] ?? "";
+  return indentation + stripInlineComment(value);
 }
 
 function stripOuterQuotes(value: string): string {

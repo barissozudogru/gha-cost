@@ -1256,6 +1256,17 @@ describe("cache detection", () => {
     assert.equal(detectsCachingForTest(wf), false);
   });
 
+  it("ignores cache declarations in YAML comments", () => {
+    const wf = [
+      "jobs:", "  a:", "    steps:",
+      "      # - uses: actions/cache@v4",
+      "      - uses: actions/setup-node@v4",
+      "        with:", "          node-version: 20",
+      "          # cache: npm",
+    ].join("\n");
+    assert.equal(detectsCachingForTest(wf), false);
+  });
+
   it("does not treat a later action's cache input as setup-node caching", () => {
     const wf = [
       "jobs:", "  a:", "    steps:",
