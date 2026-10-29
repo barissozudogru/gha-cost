@@ -146,6 +146,10 @@ test("quoted on: keys parse, since YAML reads bare on as boolean true", () => {
   assert.deepEqual(parseTriggers("'on': push\njobs:\n").names, ["push"]);
 });
 
+test("quoted on keys allow whitespace before the colon", () => {
+  assert.deepEqual(parseTriggers('"on" : push\njobs:\n').names, ["push"]);
+});
+
 test("a UTF-8 BOM does not hide the top-level on key", () => {
   const triggers = parseTriggers("\uFEFFon: push\njobs:\n  a:\n");
   assert.deepEqual(triggers.names, ["push"]);
