@@ -1534,6 +1534,27 @@ name: Quoted Jobs Test
     }
   });
 
+  it("parses a quoted top-level jobs key with whitespace before the colon", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-spaced-jobs-key-${Date.now()}.yml`);
+    const yaml = `
+name: Spaced Jobs Key Test
+"jobs" :
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs.length, 1);
+      assert.equal(estimate.jobs[0]?.id, "build");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses a top-level workflow name with whitespace before the colon", () => {
     const tmpFile = join(tmpdir(), `test-workflow-spaced-name-${Date.now()}.yml`);
     const yaml = [
