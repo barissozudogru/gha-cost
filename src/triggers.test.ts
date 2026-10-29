@@ -22,6 +22,11 @@ test("cron day-of-week value 7 is treated as Sunday", () => {
   assert.equal(cronRunsPerDay("0 8 * * 7"), 1 / 7);
 });
 
+test("cron accepts named months and weekdays", () => {
+  assert.equal(cronRunsPerDay("0 8 * * MON-FRI"), 5 / 7);
+  assert.equal(cronRunsPerDay("0 8 * JAN-MAR *"), 90.25 / 365.25);
+});
+
 test("a malformed cron contributes nothing rather than guessing", () => {
   assert.equal(cronRunsPerDay("not a cron"), 0);
   assert.equal(cronRunsPerDay("0 3 * *"), 0);
