@@ -1351,6 +1351,27 @@ jobs:
     }
   });
 
+  it("parses a quoted step key with whitespace before the colon", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-spaced-step-key-${Date.now()}.yml`);
+    const yaml = `
+name: Spaced Step Key
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - "run" : npm test
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, "npm test");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses quoted indented step keys and block run scalars", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-block-step-keys-${Date.now()}.yml`);
     const yaml = `
