@@ -210,6 +210,25 @@ function expandField(field: string, min: number, max: number): number[] {
   const parts = field.split(",");
   if (parts.some((part) => part === "")) return [];
 
+  const namedValues =
+    min === 0 && max === 7
+      ? new Map([
+          ["SUN", 0], ["MON", 1], ["TUE", 2], ["WED", 3],
+          ["THU", 4], ["FRI", 5], ["SAT", 6],
+        ])
+      : min === 1 && max === 12
+        ? new Map([
+            ["JAN", 1], ["FEB", 2], ["MAR", 3], ["APR", 4],
+            ["MAY", 5], ["JUN", 6], ["JUL", 7], ["AUG", 8],
+            ["SEP", 9], ["OCT", 10], ["NOV", 11], ["DEC", 12],
+          ])
+        : null;
+
+  const parseValue = (value: string): number | null => {
+    if (/^\d+$/.test(value)) return parseInt(value, 10);
+    return namedValues?.get(value.toUpperCase()) ?? null;
+  };
+
   for (const part of parts) {
     const step = /^(.+)\/(\d+)$/.exec(part);
     const body = step ? step[1] : part;
@@ -219,13 +238,13 @@ function expandField(field: string, min: number, max: number): number[] {
     let lo = min;
     let hi = max;
     if (body !== "*") {
-      const range = /^(\d+)-(\d+)$/.exec(body);
+      const range = /^([A-Za-z0-9]+)-([A-Za-z0-9]+)$/.exec(body);
       if (range) {
-        lo = parseInt(range[1], 10);
-        hi = parseInt(range[2], 10);
+        lo = parseValue(range[1]) ?? -1;
+        hi = parseValue(range[2]) ?? -1;
         if (lo < min || hi > max || lo > hi) return [];
-      } else if (/^\d+$/.test(body)) {
-        lo = parseInt(body, 10);
+      } else if (/^[A-Za-z0-9]+$/.test(body)) {
+        lo = parseValue(body) ?? -1;
         hi = step ? max : lo;
         if (lo < min || lo > max) return [];
       } else {
