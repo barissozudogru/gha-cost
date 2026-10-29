@@ -1325,6 +1325,32 @@ jobs:
   });
 });
 
+describe("YAML step sequence parsing", () => {
+  it("collects steps written with a bare sequence dash", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-bare-step-dash-${Date.now()}.yml`);
+    const yaml = `
+name: Bare Step Dash Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Build
+        run: npm test
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.name, "Build");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+});
+
 describe("workflow key parsing", () => {
   it("parses quoted step keys", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-step-keys-${Date.now()}.yml`);
