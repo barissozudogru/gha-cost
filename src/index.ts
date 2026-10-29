@@ -706,11 +706,11 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         // runs-on - at jobChildIndent
         if (
           jobLineIndent === jobChildIndent &&
-          /^(?:runs-on|"runs-on"|'runs-on'):\s*/.test(jobLine.trimStart())
+          /^(?:runs-on|"runs-on"|'runs-on')\s*:\s*/.test(jobLine.trimStart())
         ) {
           job.runsOn = stripOuterQuotes(
             stripInlineComment(
-              jobLine.trimStart().replace(/^(?:runs-on|"runs-on"|'runs-on'):\s*/, "")
+              jobLine.trimStart().replace(/^(?:runs-on|"runs-on"|'runs-on')\s*:\s*/, "")
             )
           );
           i++;

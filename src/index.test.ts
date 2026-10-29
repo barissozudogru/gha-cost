@@ -1422,6 +1422,26 @@ jobs:
     }
   });
 
+  it("parses a job runner key with whitespace before the colon", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-spaced-runs-on-${Date.now()}.yml`);
+    const yaml = `
+name: Spaced Runner Key Test
+jobs:
+  build:
+    runs-on : macos-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.runner, "macos");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses quoted job name keys with whitespace before the colon", () => {
     const cases = ["\"name\" : Compile", "'name' : Test"];
 
