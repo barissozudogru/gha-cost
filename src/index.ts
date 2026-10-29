@@ -834,7 +834,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
             // New step item - list items are at stepListIndent (jobIndent * 3)
             if (
               stepIndent === stepListIndent &&
-              /^-\s/.test(stepLine.trimStart())
+              /^-(?:\s|$)/.test(stepLine.trimStart())
             ) {
               if (currentStep) {
                 job.steps.push({
@@ -846,7 +846,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               currentStep = {};
 
               // Check for inline key on same line as dash: "- uses: actions/checkout@v4"
-              const inlineKey = stepLine.trimStart().replace(/^-\s+/, "");
+              const inlineKey = stepLine.trimStart().replace(/^-\s*/, "");
               const keyMatch = inlineKey.match(
                 /^(?:"(name|uses|run)"|'(name|uses|run)'|(name|uses|run))\s*:\s*(.*)/
               );
