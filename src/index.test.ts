@@ -1702,6 +1702,29 @@ jobs:
     }
   });
 
+  it("parses a quoted strategy key", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-strategy-${Date.now()}.yml`);
+    const yaml = [
+      "name: Quoted strategy",
+      "jobs:",
+      "  build:",
+      '    "strategy":',
+      "      matrix:",
+      "        os: [ubuntu-latest, macos-latest]",
+      "    runs-on: \${{ matrix.os }}",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 2);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("preserves hashes inside quoted workflow and job names", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-names-${Date.now()}.yml`);
     const yaml = [
