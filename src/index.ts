@@ -57,7 +57,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /aws-actions\//i, low: 3, high: 25, label: "aws-action" },
   { pattern: /google-github-actions\//i, low: 3, high: 25, label: "gcp-action" },
   { pattern: /azure\//i, low: 3, high: 25, label: "azure-action" },
-  { pattern: /npm\s+(ci|install)/i, low: 15, high: 120, label: "npm-install", cacheSensitive: true },
+  { pattern: /npm\s+(ci|install)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "npm-install", cacheSensitive: true },
   { pattern: /npm\s+(run\s+)?test\b/i, low: 20, high: 300, label: "npm-test" },
   { pattern: /npm\s+(run\s+)?build/i, low: 10, high: 180, label: "npm-build" },
   { pattern: /npm\s+(run\s+)?lint/i, low: 5, high: 60, label: "npm-lint" },

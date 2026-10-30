@@ -1187,6 +1187,20 @@ describe("step duration heuristics", () => {
       { low: 0, high: 60 }
     );
   });
+
+  it("requires a complete npm install command token", () => {
+    for (const command of ["npm installable", "npm install-script", "npm install.foo", "npm install=prod"]) {
+      assert.deepEqual(
+        estimateStepDurationForTest("Dependency check", undefined, command),
+        { low: 0, high: 60 },
+        command
+      );
+    }
+    assert.deepEqual(
+      estimateStepDurationForTest("Install dependencies", undefined, "npm install --legacy-peer-deps"),
+      { low: 15, high: 120 }
+    );
+  });
 });
 
 describe("estimated ranges against measured runs", () => {
