@@ -741,7 +741,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
             if (
               getIndent(stratLine) === strategyIndent &&
-              /^matrix:\s*(?:#.*)?$/.test(stratLine.trimStart())
+              /^(?:matrix|"matrix"|'matrix')\s*:\s*(?:#.*)?$/.test(stratLine.trimStart())
             ) {
               i++;
               while (i < lines.length) {

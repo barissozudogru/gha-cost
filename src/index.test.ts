@@ -1725,6 +1725,35 @@ jobs:
     }
   });
 
+  it("parses quoted matrix keys with spacing and comments", () => {
+    for (const [index, matrixKey] of [
+      '"matrix":',
+      "'matrix'  :",
+      "matrix : # the matrix block",
+    ].entries()) {
+      const tmpFile = join(tmpdir(), `test-workflow-quoted-matrix-${Date.now()}-${index}.yml`);
+      const yaml = [
+        "name: Quoted matrix",
+        "jobs:",
+        "  build:",
+        "    strategy:",
+        `      ${matrixKey}`,
+        "        node: [18, 20]",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: echo ok",
+      ].join("\n");
+      writeFileSync(tmpFile, yaml, "utf-8");
+
+      try {
+        const estimate = estimateWorkflow(tmpFile, 1);
+        assert.equal(estimate.jobs[0]?.matrixCombinations, 2);
+      } finally {
+        unlinkSync(tmpFile);
+      }
+    }
+  });
+
   it("preserves hashes inside quoted workflow and job names", () => {
     const tmpFile = join(tmpdir(), `test-workflow-quoted-names-${Date.now()}.yml`);
     const yaml = [
