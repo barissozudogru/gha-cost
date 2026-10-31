@@ -173,6 +173,13 @@ test("schedule crons are collected", () => {
   assert.deepEqual(parseTriggers(wf).crons, ["0 8 * * 1", "0 20 * * 5"]);
 });
 
+test("quoted cron keys are collected", () => {
+  const wf = ["on:", "  schedule:", "    - \"cron\": '0 8 * * 1'", "jobs:"].join("\n");
+  const triggers = parseTriggers(wf);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
+});
+
 test("pushes per day applies only to push-like triggers", () => {
   const scheduled = parseTriggers(["on:", "  schedule:", "    - cron: '0 8 * * 1'", "jobs:"].join("\n"));
   const e = estimateRunsPerDay(scheduled, 10);
