@@ -1714,6 +1714,27 @@ jobs:
     }
   });
 
+  it("parses a quoted steps key", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-quoted-steps-${Date.now()}-${Math.random()}.yml`);
+    const yaml = [
+      "name: Quoted steps",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      '    "steps":',
+      "      - run: npm test",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, "npm test");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses matrix blocks when strategy and matrix keys have YAML comments", () => {
     const tmpFile = join(tmpdir(), `test-workflow-commented-matrix-${Date.now()}-${Math.random()}.yml`);
     const yaml = [
