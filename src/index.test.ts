@@ -1188,6 +1188,13 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("does not treat npm scripts beginning with build as npm builds", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Build tooling", undefined, "npm run builder"),
+      { low: 0, high: 60 }
+    );
+  });
+
   it("requires a complete npm install command token", () => {
     for (const command of ["npm installable", "npm install-script", "npm install.foo", "npm install=prod"]) {
       assert.deepEqual(
