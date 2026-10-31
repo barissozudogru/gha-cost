@@ -155,7 +155,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
       continue;
     }
 
-    const cron = /^-\s*cron:\s*(.+)$/.exec(trimmed);
+    const cron = /^-\s*(?:cron|"cron"|'cron')\s*:\s*(.+)$/.exec(trimmed);
     if (cron) {
       crons.push(cron[1].trim().replace(/^['"]|['"]$/g, ""));
       continue;
