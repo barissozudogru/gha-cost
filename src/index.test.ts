@@ -1201,6 +1201,20 @@ describe("step duration heuristics", () => {
       { low: 15, high: 120 }
     );
   });
+
+  it("requires a complete npm test command token", () => {
+    for (const command of ["npm test-script", "npm test.foo", "npm test=prod"]) {
+      assert.deepEqual(
+        estimateStepDurationForTest("Dependency check", undefined, command),
+        { low: 0, high: 60 },
+        command
+      );
+    }
+    assert.deepEqual(
+      estimateStepDurationForTest("Test project", undefined, "npm test -- --runInBand"),
+      { low: 20, high: 300 }
+    );
+  });
 });
 
 describe("estimated ranges against measured runs", () => {
