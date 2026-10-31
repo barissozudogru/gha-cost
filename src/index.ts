@@ -59,7 +59,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /azure\//i, low: 3, high: 25, label: "azure-action" },
   { pattern: /npm\s+(ci|install)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "npm-install", cacheSensitive: true },
   { pattern: /npm\s+(run\s+)?test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "npm-test" },
-  { pattern: /npm\s+(run\s+)?build/i, low: 10, high: 180, label: "npm-build" },
+  { pattern: /npm\s+(run\s+)?build(?=$|[\s;&|()<>])/i, low: 10, high: 180, label: "npm-build" },
   { pattern: /npm\s+(run\s+)?lint/i, low: 5, high: 60, label: "npm-lint" },
   { pattern: /yarn\s+(install|ci)/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
   { pattern: /yarn\s+(test|jest)/i, low: 20, high: 300, label: "yarn-test" },
