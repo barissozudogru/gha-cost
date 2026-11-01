@@ -47,11 +47,11 @@ test("an impossible day of month contributes no runs", () => {
   assert.equal(cronRunsPerDay("0 0 31 2 *"), 0);
   assert.equal(
     cronRunsPerDay("0 0 30 2,4 *"),
-    1 / 365.25
+    400 / 146097
   );
   assert.equal(
     cronRunsPerDay("0 0 29-31 2 *"),
-    0.25 / 365.25
+    97 / 146097
   );
 });
 
