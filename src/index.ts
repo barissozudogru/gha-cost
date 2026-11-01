@@ -755,11 +755,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 // Matrix key: [values] (inline)
                 const inlineMatch = matLine
                   .trimStart()
-                  .match(/^([\w-]+):\s*(\[.+\])/);
+                  .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*(\[.+\])/);
                 if (inlineMatch && getIndent(matLine) === matrixKeyIndent) {
-                  const values = parseInlineArray(inlineMatch[2]);
+                  const key = inlineMatch[1] ?? inlineMatch[2] ?? inlineMatch[3];
+                  const values = parseInlineArray(inlineMatch[4]);
                   if (values.length > 0) {
-                    job.matrix.push({ key: inlineMatch[1], values });
+                    job.matrix.push({ key, values });
                   }
                   i++;
                   continue;
