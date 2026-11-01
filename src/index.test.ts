@@ -1271,6 +1271,20 @@ describe("step duration heuristics", () => {
       { low: 20, high: 300 }
     );
   });
+
+  it("requires a complete npm lint command token", () => {
+    for (const command of ["npm linting", "npm lint-script", "npm lint.foo", "npm lint=ci"]) {
+      assert.deepEqual(
+        estimateStepDurationForTest("Dependency check", undefined, command),
+        { low: 0, high: 60 },
+        command
+      );
+    }
+    assert.deepEqual(
+      estimateStepDurationForTest("Lint project", undefined, "npm run lint -- --max-warnings=0"),
+      { low: 5, high: 60 }
+    );
+  });
 });
 
 describe("estimated ranges against measured runs", () => {
