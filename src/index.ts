@@ -483,6 +483,42 @@ function parseInlineArray(value: string): string[] {
   return inner.split(",").map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
 }
 
+function parseInlineMatrix(value: string): MatrixDimension[] {
+  const match = value.match(/^\{(.+)\}$/);
+  if (!match) return [];
+
+  const dimensions: MatrixDimension[] = [];
+  let start = 0;
+  let depth = 0;
+  let quote: string | null = null;
+  const entries: string[] = [];
+
+  for (let i = 0; i < match[1].length; i++) {
+    const char = match[1][i];
+    if (quote) {
+      if (char === quote && match[1][i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') quote = char;
+    else if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === "," && depth === 0) {
+      entries.push(match[1].slice(start, i));
+      start = i + 1;
+    }
+  }
+  entries.push(match[1].slice(start));
+
+  for (const entry of entries) {
+    const colonIndex = entry.indexOf(":");
+    if (colonIndex === -1) continue;
+    const key = stripOuterQuotes(entry.slice(0, colonIndex).trim());
+    const values = parseInlineArray(entry.slice(colonIndex + 1).trim());
+    if (key && values.length > 0) dimensions.push({ key, values });
+  }
+  return dimensions;
+}
+
 function parseMatrixIncludeExclude(
   lines: string[],
   startIndex: number,
@@ -818,6 +854,16 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
                 i++;
               }
+              continue;
+            }
+
+            const inlineMatrix = stratLine
+              .trimStart();
+            const inlineMatrixMatch = stripInlineComment(inlineMatrix)
+              .match(/^(?:matrix|"matrix"|'matrix')\s*:\s*(\{.*\})\s*$/);
+            if (inlineMatrixMatch && getIndent(stratLine) === strategyIndent) {
+              job.matrix.push(...parseInlineMatrix(inlineMatrixMatch[1]));
+              i++;
               continue;
             }
 
