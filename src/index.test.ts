@@ -534,6 +534,29 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("parses an inline matrix mapping", () => {
+    const tmpFile = writeTempYaml(
+      "inline-matrix",
+      `
+name: Inline Matrix Test
+jobs:
+  job1:
+    strategy:
+      matrix: { os: [ubuntu-latest, windows-latest] }
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 2);
+      assert.equal(estimate.jobs[0]?.runner, "windows");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("resolves a matrix of one platform to that platform's rate", () => {
     const tmpFile = writeTempYaml(
       "matrix-ubuntu",
