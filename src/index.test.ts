@@ -1285,6 +1285,17 @@ describe("step duration heuristics", () => {
       { low: 5, high: 60 }
     );
   });
+
+  it("requires a complete yarn test command token", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Dependency check", undefined, "yarn testing"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Test project", undefined, "yarn test --runInBand"),
+      { low: 20, high: 300 }
+    );
+  });
 });
 
 describe("estimated ranges against measured runs", () => {
