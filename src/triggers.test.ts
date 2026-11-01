@@ -168,6 +168,11 @@ test("quoted trigger keys parse inside the on: mapping", () => {
   assert.equal(triggers.hasPushLike, true);
 });
 
+test("trigger keys allow whitespace before the colon", () => {
+  const workflow = ['on:', '  "push" :', '  workflow_dispatch :', 'jobs:'].join("\n");
+  assert.deepEqual(parseTriggers(workflow).names, ["push", "workflow_dispatch"]);
+});
+
 test("schedule crons are collected", () => {
   const wf = ["on:", "  schedule:", "    - cron: '0 8 * * 1'", "    - cron: \"0 20 * * 5\"", "jobs:"].join("\n");
   assert.deepEqual(parseTriggers(wf).crons, ["0 8 * * 1", "0 20 * * 5"]);
