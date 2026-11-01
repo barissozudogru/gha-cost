@@ -266,28 +266,22 @@ function expandDayOfWeek(field: string): number[] {
 const DAYS_PER_MONTH = 30.44;
 
 function dayMonthOccurrencesPerYear(dom: string, month: string): number {
-  const days = expandField(dom, 1, 31);
-  const months = expandField(month, 1, 12);
-  const averageDaysInMonth = [
-    31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31,
-  ];
-  const occurrences = months.reduce((total, selectedMonth) => {
-    const daysInMonth = averageDaysInMonth[selectedMonth - 1];
-    return (
-      total +
-      days.reduce(
-        (monthTotal, day) =>
-          monthTotal +
-          (selectedMonth === 2 && day === 29
-            ? 0.25
-            : day <= daysInMonth
-              ? 1
-              : 0),
-        0
-      )
-    );
-  }, 0);
-  return occurrences / 365.25;
+  const days = new Set(expandField(dom, 1, 31));
+  const months = new Set(expandField(month, 1, 12));
+  let occurrences = 0;
+
+  // A fixed average makes leap-day schedules inaccurate. Count the same
+  // Gregorian 400-year cycle used by the day-of-week path instead.
+  for (let year = 2000; year < 2400; year++) {
+    for (let monthNumber = 1; monthNumber <= 12; monthNumber++) {
+      if (!months.has(monthNumber)) continue;
+      const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+      for (const day of days) {
+        if (day <= daysInMonth) occurrences++;
+      }
+    }
+  }
+  return occurrences / 146097;
 }
 
 function monthOccurrencesPerDay(month: string): number {
