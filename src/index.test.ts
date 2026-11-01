@@ -641,6 +641,62 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("resolves a quoted key in a block matrix list", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-quoted-block-key",
+      `
+name: Quoted Block Matrix Key Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        "os":
+          - ubuntu-latest
+          - macos-latest
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.runner, "macos");
+      assert.equal(job.estimatedCostUsd, 2 * (0.006 + 0.062));
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("resolves a quoted key with whitespace before the colon", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-quoted-block-key-space",
+      `
+name: Quoted Block Matrix Key Whitespace Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        "os" :
+          - ubuntu-latest
+          - macos-latest
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      const job = estimate.jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.runner, "macos");
+      assert.equal(job.estimatedCostUsd, 2 * (0.006 + 0.062));
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("keeps the self-hosted rate for expressions it cannot resolve", () => {
     // The matrix has no runner dimension, so the label cannot be substituted
     // and stays on the unknown rate rather than guessing a platform.

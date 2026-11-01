@@ -803,9 +803,11 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 }
 
                 // Matrix key: (block list)
-                const blockMatch = matLine.trimStart().match(/^([\w-]+):\s*$/);
+                const blockMatch = matLine
+                  .trimStart()
+                  .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*$/);
                 if (blockMatch && getIndent(matLine) === matrixKeyIndent) {
-                  const key = blockMatch[1];
+                  const key = blockMatch[1] ?? blockMatch[2] ?? blockMatch[3];
                   i++;
                   if (key === "include" || key === "exclude") {
                     const parsed = parseMatrixIncludeExclude(
