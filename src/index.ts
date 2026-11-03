@@ -203,7 +203,7 @@ function parseMatrixValueObject(
   dimensionKeys: string[]
 ): Record<string, string> {
   const result: Record<string, string> = {};
-  const parts = entry.split(",").map((p) => p.trim());
+  const parts = splitInlineValues(entry).map((p) => p.trim());
   for (let idx = 0; idx < parts.length; idx++) {
     const part = parts[idx];
     const colonIdx = part.indexOf(":");
@@ -434,6 +434,37 @@ function stripOuterQuotes(value: string): string {
   return value;
 }
 
+function splitInlineValues(value: string): string[] {
+  const parts: string[] = [];
+  let start = 0;
+  let quote: string | null = null;
+  let depth = 0;
+
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (quote) {
+      if (char === "\\") {
+        i++;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === "[" || char === "{") {
+      depth++;
+    } else if (char === "]" || char === "}") {
+      depth--;
+    } else if (char === "," && depth === 0) {
+      parts.push(value.slice(start, i));
+      start = i + 1;
+    }
+  }
+  parts.push(value.slice(start));
+  return parts;
+}
+
 function parseMatrixValues(lines: string[], startIndex: number, indent: number): string[] {
   const values: string[] = [];
   let i = startIndex;
@@ -465,8 +496,7 @@ function parseInlineArray(value: string): string[] {
     const objects = [...inner.matchAll(/\{([^}]+)\}/g)].map((m) => m[1].trim());
     if (objects.length > 0) {
       return objects.map((obj) =>
-        obj
-          .split(",")
+        splitInlineValues(obj)
           .map((pair) => {
             const colonIdx = pair.indexOf(":");
             if (colonIdx !== -1) {
@@ -480,7 +510,7 @@ function parseInlineArray(value: string): string[] {
       );
     }
   }
-  return inner.split(",").map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
+  return splitInlineValues(inner).map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
 }
 
 function parseInlineMatrix(value: string): MatrixDimension[] {
@@ -556,7 +586,7 @@ function parseMatrixIncludeExclude(
       const afterDash = stripInlineComment(trimmed.slice(2).trim());
       if (afterDash.startsWith("{") && afterDash.endsWith("}")) {
         const inner = afterDash.slice(1, -1);
-        for (const pair of inner.split(",")) {
+        for (const pair of splitInlineValues(inner)) {
           const colonIdx = pair.indexOf(":");
           if (colonIdx !== -1) {
             const k = stripOuterQuotes(pair.slice(0, colonIdx).trim());
