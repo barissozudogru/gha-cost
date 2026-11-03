@@ -1453,6 +1453,15 @@ describe("cache detection", () => {
     assert.equal(detectsCachingForTest(wf), false);
   });
 
+  it("does not treat an explicitly disabled setup cache as enabled", () => {
+    const wf = [
+      "jobs:", "  a:", "    steps:",
+      "      - uses: actions/setup-node@v4",
+      "        with:", "          cache: false",
+    ].join("\n");
+    assert.equal(detectsCachingForTest(wf), false);
+  });
+
   it("ignores cache declarations in YAML comments", () => {
     const wf = [
       "jobs:", "  a:", "    steps:",
