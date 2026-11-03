@@ -557,6 +557,29 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("keeps commas inside quoted inline matrix values", () => {
+    const tmpFile = writeTempYaml(
+      "inline-matrix-comma",
+      `
+name: Inline Matrix Comma Test
+jobs:
+  job1:
+    strategy:
+      matrix: { version: ["18,20", "22"] }
+    runs-on: ubuntu-latest
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 2);
+      assert.deepEqual(estimate.jobs[0]?.matrix[0]?.values, ["18,20", "22"]);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("resolves a matrix of one platform to that platform's rate", () => {
     const tmpFile = writeTempYaml(
       "matrix-ubuntu",
