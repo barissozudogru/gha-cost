@@ -122,7 +122,8 @@ export function detectsCaching(content: string): boolean {
       const indent = line.length - line.trimStart().length;
       if (indent <= stepIndent && /^-\s/.test(line.trimStart())) break;
       if (indent <= stepIndent) break;
-      if (/^\s+cache:\s*\S/i.test(line)) return true;
+      const cache = /^\s+cache:\s*(\S+)/i.exec(line);
+      if (cache && stripOuterQuotes(cache[1]).toLowerCase() !== "false") return true;
     }
   }
   return false;
