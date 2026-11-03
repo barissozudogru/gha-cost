@@ -1247,6 +1247,34 @@ jobs:
     }
   });
 
+  it("parses matrix include entries written with a bare sequence dash", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-bare-dash-include",
+      `
+name: Bare Dash Matrix Include Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        include:
+          -
+            os: macos-latest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+`
+    );
+
+    try {
+      const job = estimateWorkflow(tmpFile, 10).jobs[0];
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.matrix?.find((dimension) => dimension.key === "include")?.values[0], "os: macos-latest");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("matches exclusions against quoted block matrix values", () => {
     const tmpFile = writeTempYaml(
       "matrix-quoted-values",

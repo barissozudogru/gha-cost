@@ -580,11 +580,11 @@ function parseMatrixIncludeExclude(
     const lineIndent = getIndent(rawLine);
     if (lineIndent < minIndent) break;
 
-    if (trimmed.startsWith("- ")) {
+    if (/^-(?:\s|$)/.test(trimmed)) {
       flushCurrent();
       itemIndent = lineIndent;
       currentItem = {};
-      const afterDash = stripInlineComment(trimmed.slice(2).trim());
+      const afterDash = stripInlineComment(trimmed.slice(1).trim());
       if (afterDash.startsWith("{") && afterDash.endsWith("}")) {
         const inner = afterDash.slice(1, -1);
         for (const pair of splitInlineValues(inner)) {
