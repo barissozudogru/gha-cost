@@ -185,6 +185,18 @@ test("quoted cron keys are collected", () => {
   assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
 });
 
+test("hashes inside quoted cron values are not treated as comments", () => {
+  const workflow = [
+    "on:",
+    "  schedule:",
+    '    - cron: "0 8 * * 1 # invalid"',
+    "jobs:",
+  ].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1 # invalid"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 0);
+});
+
 test("pushes per day applies only to push-like triggers", () => {
   const scheduled = parseTriggers(["on:", "  schedule:", "    - cron: '0 8 * * 1'", "jobs:"].join("\n"));
   const e = estimateRunsPerDay(scheduled, 10);

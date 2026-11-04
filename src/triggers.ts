@@ -29,6 +29,35 @@ const UNPREDICTABLE = new Set([
   "repository_dispatch",
 ]);
 
+function stripInlineComment(value: string): string {
+  let quote: "'" | '"' | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (quote === "'") {
+      if (char === "'" && value[i + 1] === "'") {
+        i++;
+      } else if (char === "'") {
+        quote = null;
+      }
+      continue;
+    }
+    if (quote === '"') {
+      if (char === "\\") {
+        i++;
+      } else if (char === '"') {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') {
+      quote = char;
+    } else if (char === "#" && (i === 0 || /\s/.test(value[i - 1]))) {
+      return value.slice(0, i).trim();
+    }
+  }
+  return value.trim();
+}
+
 function flowBraceBalance(value: string): number {
   let balance = 0;
   let quote: string | null = null;
@@ -104,7 +133,8 @@ export function parseTriggers(content: string): WorkflowTriggers {
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
-    const line = raw.replace(/\s+#.*$/, "");
+    const indentation = raw.match(/^\s*/)?.[0] ?? "";
+    const line = indentation + stripInlineComment(raw.slice(indentation.length));
     if (!line.trim() || line.trim().startsWith("#")) continue;
 
     const indent = line.length - line.trimStart().length;
