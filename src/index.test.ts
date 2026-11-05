@@ -1358,6 +1358,13 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("recognises yarn run build as a yarn build", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Build project", undefined, "yarn run build"),
+      { low: 15, high: 150 }
+    );
+  });
+
   it("requires a complete npm install command token", () => {
     for (const command of ["npm installable", "npm install-script", "npm install.foo", "npm install=prod"]) {
       assert.deepEqual(
