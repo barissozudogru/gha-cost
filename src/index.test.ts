@@ -264,6 +264,29 @@ jobs:
   });
 });
 
+describe("workflow dependency hints", () => {
+  it("does not suggest a dependency cache for yarn command prefixes", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-yarn-prefix-${Date.now()}.yml`);
+    const yaml = `
+name: Yarn Command Prefix Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check
+        run: yarn install-package
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.deepEqual(estimate.hints, []);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+});
+
 describe("estimateWorkflow self-hosted rate handling", () => {
   it("defaults self-hosted runners to 0 cost when selfHostedRate is omitted", () => {
     const tmpFile = join(tmpdir(), `test-workflow-${Date.now()}.yml`);
@@ -1362,6 +1385,17 @@ describe("step duration heuristics", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Build project", undefined, "yarn run build"),
       { low: 15, high: 150 }
+    );
+  });
+
+  it("requires a complete yarn install command token", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Install package", undefined, "yarn install-package"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Install dependencies", undefined, "yarn install --immutable"),
+      { low: 15, high: 120 }
     );
   });
 
