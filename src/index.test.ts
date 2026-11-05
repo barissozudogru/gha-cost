@@ -2179,4 +2179,50 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("parses block-sequence runs-on labels", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-block-runs-on-${Date.now()}.yml`);
+    const yaml = `
+name: Block Runs On Test
+jobs:
+  build:
+    runs-on:
+      - windows-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.runner, "windows");
+      assert.equal(estimate.jobs[0]?.runnerLabel, "windows-latest");
+      assert.equal(estimate.jobs[0]?.estimatedCostUsd, 0.01);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("parses indentless block-sequence runs-on labels without consuming job fields", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-indentless-runs-on-${Date.now()}.yml`);
+    const yaml = `
+name: Indentless Runs On Test
+jobs:
+  build:
+    runs-on:
+    - windows-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.runner, "windows");
+      assert.equal(estimate.jobs[0]?.runnerLabel, "windows-latest");
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });

@@ -783,12 +783,31 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           jobLineIndent === jobChildIndent &&
           /^(?:runs-on|"runs-on"|'runs-on')\s*:\s*/.test(jobLine.trimStart())
         ) {
-          job.runsOn = stripOuterQuotes(
-            stripInlineComment(
-              jobLine.trimStart().replace(/^(?:runs-on|"runs-on"|'runs-on')\s*:\s*/, "")
-            )
+          const inlineRunsOn = stripInlineComment(
+            jobLine.trimStart().replace(/^(?:runs-on|"runs-on"|'runs-on')\s*:\s*/, "")
           );
+          job.runsOn = stripOuterQuotes(inlineRunsOn);
           i++;
+
+          if (inlineRunsOn === "") {
+            const labels: string[] = [];
+            let labelIndent: number | null = null;
+            while (i < lines.length) {
+              const labelLine = lines[i];
+              if (labelLine.trim() === "" || labelLine.trim().startsWith("#")) {
+                i++;
+                continue;
+              }
+              const indent = getIndent(labelLine);
+              const item = /^-\s*(.+)$/.exec(labelLine.trimStart());
+              if (indent < jobChildIndent || !item) break;
+              if (labelIndent === null) labelIndent = indent;
+              if (indent !== labelIndent) break;
+              labels.push(stripOuterQuotes(stripInlineComment(item[1])));
+              i++;
+            }
+            if (labels.length > 0) job.runsOn = labels.join(", ");
+          }
           continue;
         }
 
