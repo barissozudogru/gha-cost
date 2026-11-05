@@ -63,7 +63,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /npm\s+(run\s+)?lint(?=$|[\s;&|()<>])/i, low: 5, high: 60, label: "npm-lint" },
   { pattern: /yarn\s+(install|ci)/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
   { pattern: /yarn\s+(test|jest)(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "yarn-test" },
-  { pattern: /yarn\s+build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "yarn-build" },
+  { pattern: /yarn\s+(?:run\s+)?build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "yarn-build" },
   { pattern: /pnpm\s+(install|ci)/i, low: 10, high: 100, label: "pnpm-install", cacheSensitive: true },
   { pattern: /pnpm\s+test/i, low: 20, high: 300, label: "pnpm-test" },
   { pattern: /pnpm\s+build/i, low: 15, high: 150, label: "pnpm-build" },
