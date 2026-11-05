@@ -285,6 +285,27 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("does not suggest a dependency cache for pnpm command prefixes", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-pnpm-prefix-${Date.now()}.yml`);
+    const yaml = `
+name: Pnpm Command Prefix Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check
+        run: pnpm install-package
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.deepEqual(estimate.hints, []);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("estimateWorkflow self-hosted rate handling", () => {
@@ -1449,6 +1470,13 @@ describe("step duration heuristics", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Test project", undefined, "yarn test --runInBand"),
       { low: 20, high: 300 }
+    );
+  });
+
+  it("requires a complete pnpm install command token", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Install", undefined, "pnpm install-package"),
+      { low: 0, high: 60 }
     );
   });
 });

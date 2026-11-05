@@ -64,9 +64,9 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /yarn\s+(install|ci)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
   { pattern: /yarn\s+(test|jest)(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "yarn-test" },
   { pattern: /yarn\s+(?:run\s+)?build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "yarn-build" },
-  { pattern: /pnpm\s+(install|ci)/i, low: 10, high: 100, label: "pnpm-install", cacheSensitive: true },
-  { pattern: /pnpm\s+test/i, low: 20, high: 300, label: "pnpm-test" },
-  { pattern: /pnpm\s+build/i, low: 15, high: 150, label: "pnpm-build" },
+  { pattern: /pnpm\s+(install|ci)(?=$|[\s;&|()<>])/i, low: 10, high: 100, label: "pnpm-install", cacheSensitive: true },
+  { pattern: /pnpm\s+test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "pnpm-test" },
+  { pattern: /pnpm\s+build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "pnpm-build" },
   { pattern: /pytest/i, low: 15, high: 300, label: "pytest" },
   { pattern: /go\s+test/i, low: 20, high: 240, label: "go-test" },
   { pattern: /go\s+build/i, low: 10, high: 150, label: "go-build" },
@@ -1065,9 +1065,9 @@ function generateHints(jobs: JobEstimate[]): string[] {
     );
     const hasInstall = job.steps.some(
       (s) =>
-        /npm\s+(ci|install)/i.test(s.run ?? "") ||
+        /npm\s+(ci|install)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
         /yarn\s+(install|ci)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
-        /pnpm\s+(install)/i.test(s.run ?? "")
+        /pnpm\s+(install)(?=$|[\s;&|()<>])/i.test(s.run ?? "")
     );
     if (hasInstall && !hasCache) {
       hints.push(
