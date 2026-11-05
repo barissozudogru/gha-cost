@@ -61,7 +61,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /npm\s+(run\s+)?test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "npm-test" },
   { pattern: /npm\s+(run\s+)?build(?=$|[\s;&|()<>])/i, low: 10, high: 180, label: "npm-build" },
   { pattern: /npm\s+(run\s+)?lint(?=$|[\s;&|()<>])/i, low: 5, high: 60, label: "npm-lint" },
-  { pattern: /yarn\s+(install|ci)/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
+  { pattern: /yarn\s+(install|ci)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
   { pattern: /yarn\s+(test|jest)(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "yarn-test" },
   { pattern: /yarn\s+(?:run\s+)?build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "yarn-build" },
   { pattern: /pnpm\s+(install|ci)/i, low: 10, high: 100, label: "pnpm-install", cacheSensitive: true },
@@ -1066,7 +1066,7 @@ function generateHints(jobs: JobEstimate[]): string[] {
     const hasInstall = job.steps.some(
       (s) =>
         /npm\s+(ci|install)/i.test(s.run ?? "") ||
-        /yarn\s+(install|ci)/i.test(s.run ?? "") ||
+        /yarn\s+(install|ci)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
         /pnpm\s+(install)/i.test(s.run ?? "")
     );
     if (hasInstall && !hasCache) {
