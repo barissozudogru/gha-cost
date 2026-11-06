@@ -306,6 +306,30 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("does not treat similarly named actions as setup-node", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-setup-node-prefix-${Date.now()}.yml`);
+    const yaml = `
+name: Setup Node Prefix Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install
+        run: npm ci
+      - uses: acme/setup-node-fork@v1
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.deepEqual(estimate.hints, [
+        'Job "build": Add actions/cache or use setup-node\'s built-in cache to speed up dependency installs.',
+      ]);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("estimateWorkflow self-hosted rate handling", () => {

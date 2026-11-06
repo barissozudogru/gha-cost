@@ -1080,7 +1080,7 @@ function generateHints(jobs: JobEstimate[]): string[] {
       (s) =>
         /(?:^|["'])actions\/cache(?:@|["']|$)/i.test(s.uses ?? "") ||
         s.name.toLowerCase().includes("cache") ||
-        s.uses?.includes("setup-node") // setup-node has built-in cache option
+        /(?:^|["'])actions\/setup-node(?:@|["']|$)/i.test(s.uses ?? "") // setup-node has built-in cache option
     );
     const hasInstall = job.steps.some(
       (s) =>
