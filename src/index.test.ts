@@ -1548,6 +1548,43 @@ describe("cache detection", () => {
     assert.equal(detectsCachingForTest("      - uses: actions/cache@v4\n"), true);
   });
 
+  it("does not treat a similarly named action as actions/cache", () => {
+    assert.equal(detectsCachingForTest("      - uses: actions/cache-control@v1\n"), false);
+  });
+
+  it("does not estimate a similarly named action as a cache step", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-cache-control-${Date.now()}.yml`);
+    const yaml = `
+name: Cache Control Action Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/cache-control@v1
+      - name: Install dependencies
+        run: npm ci
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      const cacheControl = estimate.jobs[0]?.steps[0];
+      assert.deepEqual(
+        {
+          estimatedSecondsLow: cacheControl?.estimatedSecondsLow,
+          estimatedSecondsHigh: cacheControl?.estimatedSecondsHigh,
+        },
+        { estimatedSecondsLow: 0, estimatedSecondsHigh: 60 }
+      );
+      assert.equal(estimate.cachingDetected, false);
+      assert.deepEqual(estimate.hints, [
+        'Job "build": Add actions/cache or use setup-node\'s built-in cache to speed up dependency installs.',
+      ]);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("reports none when the workflow declares no cache", () => {
     const wf = [
       "jobs:", "  a:", "    steps:",

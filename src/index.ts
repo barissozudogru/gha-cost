@@ -49,7 +49,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /actions\/setup-python/i, low: 2, high: 20, label: "setup-python", cacheSensitive: true },
   { pattern: /actions\/setup-java/i, low: 5, high: 35, label: "setup-java", cacheSensitive: true },
   { pattern: /actions\/setup-go/i, low: 2, high: 20, label: "setup-go", cacheSensitive: true },
-  { pattern: /actions\/cache/i, low: 2, high: 20, label: "cache" },
+  { pattern: /actions\/cache(?:@|\s|["']|$)/i, low: 2, high: 20, label: "cache" },
   { pattern: /actions\/upload-artifact/i, low: 3, high: 25, label: "upload-artifact" },
   { pattern: /actions\/download-artifact/i, low: 2, high: 20, label: "download-artifact" },
   { pattern: /docker\/build-push-action/i, low: 45, high: 300, label: "docker-build-push", cacheSensitive: true },
@@ -94,7 +94,7 @@ const GENERIC_STEP = { low: 0, high: 60 };
  */
 export function detectsCaching(content: string): boolean {
   const lines = content.split("\n");
-  if (lines.some((line) => /uses:\s*["']?actions\/cache/i.test(stripInlineComment(line)))) {
+  if (lines.some((line) => /uses:\s*["']?actions\/cache(?:@|\s|["']|$)/i.test(stripInlineComment(line)))) {
     return true;
   }
   // `cache:` must be nested under the same setup-* step, not a later action.
@@ -1078,7 +1078,7 @@ function generateHints(jobs: JobEstimate[]): string[] {
   for (const job of jobs) {
     const hasCache = job.steps.some(
       (s) =>
-        s.uses?.includes("actions/cache") ||
+        /(?:^|["'])actions\/cache(?:@|["']|$)/i.test(s.uses ?? "") ||
         s.name.toLowerCase().includes("cache") ||
         s.uses?.includes("setup-node") // setup-node has built-in cache option
     );
