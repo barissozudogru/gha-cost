@@ -43,8 +43,16 @@ const STEP_DURATION_HEURISTICS: Array<{
   label: string;
   /** True where a dependency cache materially changes the duration. */
   cacheSensitive?: boolean;
+  /** True where the heuristic is meaningful only for an action reference. */
+  usesOnly?: boolean;
 }> = [
-  { pattern: /actions\/checkout/i, low: 1, high: 25, label: "checkout" },
+  {
+    pattern: /^actions\/checkout(?:@|$)/i,
+    low: 1,
+    high: 25,
+    label: "checkout",
+    usesOnly: true,
+  },
   { pattern: /actions\/setup-node/i, low: 1, high: 25, label: "setup-node", cacheSensitive: true },
   { pattern: /actions\/setup-python/i, low: 2, high: 20, label: "setup-python", cacheSensitive: true },
   { pattern: /actions\/setup-java/i, low: 5, high: 35, label: "setup-java", cacheSensitive: true },
@@ -143,7 +151,8 @@ function estimateStepDuration(
   const haystack = [stepName, uses ?? "", run ?? ""].join(" ").toLowerCase();
 
   for (const h of STEP_DURATION_HEURISTICS) {
-    if (h.pattern.test(haystack)) {
+    const value = h.usesOnly ? (uses ?? "") : haystack;
+    if (h.pattern.test(value)) {
       // A declared cache is evidence the run is in the fast mode, so the upper
       // bound comes down rather than the whole range shifting.
       if (cached && h.cacheSensitive) {

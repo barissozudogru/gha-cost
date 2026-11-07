@@ -1420,6 +1420,28 @@ describe("step duration heuristics", () => {
     assert.deepEqual(r, { low: 8, high: 90 });
   });
 
+  it("does not treat a similarly named action as actions/checkout", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Checkout", "vendor/actions/checkout-extra@v1", undefined),
+      { low: 0, high: 60 }
+    );
+  });
+
+  it("only detects checkout from the uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Run command", undefined, "echo actions/checkout@v4"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("actions/checkout@v4", undefined, "echo ok"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Checkout", "actions/checkout@v4", undefined),
+      { low: 1, high: 25 }
+    );
+  });
+
   it("recognises a real publish step", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Publish to npm", undefined, "npm publish"),
