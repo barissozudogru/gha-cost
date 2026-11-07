@@ -789,7 +789,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           job.runsOn = stripOuterQuotes(inlineRunsOn);
           i++;
 
-          if (inlineRunsOn === "") {
+          if (/^\[.*\]$/.test(inlineRunsOn)) {
+            const labels = splitInlineValues(inlineRunsOn.slice(1, -1))
+              .map((label) => stripOuterQuotes(stripInlineComment(label.trim())))
+              .filter((label) => label !== "");
+            if (labels.length > 0) job.runsOn = labels.join(", ");
+          } else if (inlineRunsOn === "") {
             const labels: string[] = [];
             let labelIndent: number | null = null;
             while (i < lines.length) {

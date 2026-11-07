@@ -2286,4 +2286,25 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("parses inline runs-on label sequences", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-inline-runs-on-${Date.now()}.yml`);
+    const yaml = `
+name: Inline Runs On Test
+jobs:
+  build:
+    runs-on: [windows-latest]
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.runner, "windows");
+      assert.equal(estimate.jobs[0]?.runnerLabel, "windows-latest");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
