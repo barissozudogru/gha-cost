@@ -511,7 +511,9 @@ function parseInlineArray(value: string): string[] {
       );
     }
   }
-  return splitInlineValues(inner).map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
+  return splitInlineValues(inner)
+    .filter((v) => v.trim() !== "")
+    .map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
 }
 
 function parseInlineMatrix(value: string): MatrixDimension[] {
