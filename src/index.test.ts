@@ -625,6 +625,28 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("ignores a trailing comma in an inline matrix value list", () => {
+    const tmpFile = writeTempYaml(
+      "inline-matrix-trailing-comma",
+      `
+name: Inline Matrix Trailing Comma Test
+jobs:
+  job1:
+    strategy:
+      matrix: { os: [ubuntu-latest, windows-latest,] }
+    runs-on: \${{ matrix.os }}
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 2);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("keeps commas inside quoted inline matrix values", () => {
     const tmpFile = writeTempYaml(
       "inline-matrix-comma",
