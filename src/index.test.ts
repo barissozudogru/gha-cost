@@ -1482,6 +1482,59 @@ jobs:
     }
   });
 
+  it("matches setup-python only in uses through the full workflow path", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("actions/setup-python@v4", undefined, "echo ok"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", undefined, "echo actions/setup-python@v4"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "actions/setup-python-fork@v1", undefined),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "foo actions/setup-python@v4", undefined),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "actions/setup-python@v4", undefined),
+      { low: 2, high: 20 }
+    );
+
+    const tmpFile = join(tmpdir(), `test-workflow-setup-python-fields-${Date.now()}.yml`);
+    writeFileSync(
+      tmpFile,
+      `
+name: Setup Python Field Scope Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Invalid action reference
+        uses: foo actions/setup-python@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
+`,
+      "utf-8"
+    );
+
+    try {
+      const steps = estimateWorkflow(tmpFile, 1).jobs[0]?.steps;
+      assert.deepEqual(
+        steps?.map((step) => ({ low: step.estimatedSecondsLow, high: step.estimatedSecondsHigh })),
+        [
+          { low: 0, high: 60 },
+          { low: 2, high: 20 },
+        ]
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("does not estimate another owner's cache action as actions/cache", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Cache", "acme/actions/cache@v1", undefined),
