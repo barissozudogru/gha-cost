@@ -77,7 +77,14 @@ const STEP_DURATION_HEURISTICS: Array<{
     cacheSensitive: true,
     usesOnly: true,
   },
-  { pattern: /actions\/setup-go/i, low: 2, high: 20, label: "setup-go", cacheSensitive: true },
+  {
+    pattern: /^actions\/setup-go(?:@|$)/i,
+    low: 2,
+    high: 20,
+    label: "setup-go",
+    cacheSensitive: true,
+    usesOnly: true,
+  },
   { pattern: /^actions\/cache(?:@|$)/i, low: 2, high: 20, label: "cache", usesOnly: true },
   {
     pattern: /^actions\/upload-artifact(?:@|$)/i,
