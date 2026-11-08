@@ -1427,6 +1427,43 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("does not estimate another owner's cache action as actions/cache", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Cache", "acme/actions/cache@v1", undefined),
+      { low: 0, high: 60 }
+    );
+  });
+
+  it("estimates the official cache action through a workflow", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-actions-cache-${Date.now()}.yml`);
+    writeFileSync(
+      tmpFile,
+      `
+name: Official Cache Action Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Cache dependencies
+        uses: actions/cache@v4
+`,
+      "utf-8"
+    );
+
+    try {
+      const step = estimateWorkflow(tmpFile, 1).jobs[0]?.steps[0];
+      assert.deepEqual(
+        {
+          low: step?.estimatedSecondsLow,
+          high: step?.estimatedSecondsHigh,
+        },
+        { low: 2, high: 20 }
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("only detects checkout from the uses field", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Run command", undefined, "echo actions/checkout@v4"),
