@@ -1454,6 +1454,21 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("only estimates Docker login from the official uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Docker login-action wrapper", undefined, "echo docker/login-action"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Login", "acme/docker/login-action-fork@v1", undefined),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Login", "docker/login-action@v3", undefined),
+      { low: 1, high: 8 }
+    );
+  });
+
   it("only estimates setup-go from the official uses field", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Setup", "acme/actions/setup-go-fork@v1", undefined),
