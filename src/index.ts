@@ -57,7 +57,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /actions\/setup-python/i, low: 2, high: 20, label: "setup-python", cacheSensitive: true },
   { pattern: /actions\/setup-java/i, low: 5, high: 35, label: "setup-java", cacheSensitive: true },
   { pattern: /actions\/setup-go/i, low: 2, high: 20, label: "setup-go", cacheSensitive: true },
-  { pattern: /actions\/cache(?:@|\s|["']|$)/i, low: 2, high: 20, label: "cache" },
+  { pattern: /^actions\/cache(?:@|$)/i, low: 2, high: 20, label: "cache", usesOnly: true },
   { pattern: /actions\/upload-artifact/i, low: 3, high: 25, label: "upload-artifact" },
   { pattern: /actions\/download-artifact/i, low: 2, high: 20, label: "download-artifact" },
   { pattern: /docker\/build-push-action/i, low: 45, high: 300, label: "docker-build-push", cacheSensitive: true },
