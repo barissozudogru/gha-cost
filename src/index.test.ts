@@ -1443,6 +1443,17 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("only estimates Docker build-push from the official uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Build", "acme/docker/build-push-action-fork@v1", undefined),
+      { low: 3, high: 30 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Build", "docker/build-push-action@v6", undefined),
+      { low: 45, high: 300 }
+    );
+  });
+
   it("only estimates setup-go from the official uses field", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Setup", "acme/actions/setup-go-fork@v1", undefined),
