@@ -6,6 +6,7 @@ import {
   estimateStepDurationForTest,
   detectsCachingForTest,
   computeMatrixCombinationsForTest,
+  formatDuration,
 } from "./index.js";
 import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
@@ -15,6 +16,14 @@ import { spawnSync } from "node:child_process";
 describe("COST_RATES", () => {
   it("defaults unknown runner rate to 0", () => {
     assert.equal(COST_RATES.unknown, 0);
+  });
+});
+
+describe("formatDuration", () => {
+  it("does not render invalid durations as negative or non-finite text", () => {
+    assert.equal(formatDuration(-1), "0s");
+    assert.equal(formatDuration(Number.NaN), "0s");
+    assert.equal(formatDuration(Number.POSITIVE_INFINITY), "0s");
   });
 });
 

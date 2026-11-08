@@ -1301,6 +1301,7 @@ export function estimateWorkflow(
 }
 
 export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "0s";
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   if (m === 0) return `${s}s`;
