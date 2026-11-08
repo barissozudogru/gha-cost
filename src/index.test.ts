@@ -1535,6 +1535,41 @@ jobs:
     }
   });
 
+  it("matches setup-java only in uses through the full workflow path", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-setup-java-fields-${Date.now()}.yml`);
+    writeFileSync(
+      tmpFile,
+      `
+name: Setup Java Field Scope Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: actions/setup-java@v4
+        run: echo ok
+      - name: Shell command
+        run: echo actions/setup-java@v4
+      - name: Setup Java
+        uses: actions/setup-java@v4
+`,
+      "utf-8"
+    );
+
+    try {
+      const steps = estimateWorkflow(tmpFile, 1).jobs[0]?.steps;
+      assert.deepEqual(
+        steps?.map((step) => ({ low: step.estimatedSecondsLow, high: step.estimatedSecondsHigh })),
+        [
+          { low: 0, high: 60 },
+          { low: 0, high: 60 },
+          { low: 5, high: 35 },
+        ]
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("does not estimate another owner's cache action as actions/cache", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Cache", "acme/actions/cache@v1", undefined),
