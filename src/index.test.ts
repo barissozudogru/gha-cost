@@ -1427,6 +1427,61 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("does not treat a similarly named action as actions/setup-node", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "actions/setup-node-fork@v1", undefined),
+      { low: 0, high: 60 }
+    );
+  });
+
+  it("matches setup-node only in uses through the full workflow path", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("actions/setup-node@v4", undefined, "echo ok"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", undefined, "echo actions/setup-node@v4"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "actions/setup-node@v4", undefined),
+      { low: 1, high: 25 }
+    );
+
+    const tmpFile = join(tmpdir(), `test-workflow-setup-node-fields-${Date.now()}.yml`);
+    writeFileSync(
+      tmpFile,
+      `
+name: Setup Node Field Scope Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: actions/setup-node@v4
+        run: echo ok
+      - name: Shell command
+        run: echo actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+`,
+      "utf-8"
+    );
+
+    try {
+      const steps = estimateWorkflow(tmpFile, 1).jobs[0]?.steps;
+      assert.deepEqual(
+        steps?.map((step) => ({ low: step.estimatedSecondsLow, high: step.estimatedSecondsHigh })),
+        [
+          { low: 0, high: 60 },
+          { low: 0, high: 60 },
+          { low: 1, high: 25 },
+        ]
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("does not estimate another owner's cache action as actions/cache", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Cache", "acme/actions/cache@v1", undefined),
