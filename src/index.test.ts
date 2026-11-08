@@ -1601,6 +1601,21 @@ jobs:
     );
   });
 
+  it("only estimates download-artifact from the official uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Download", "acme/actions/download-artifact-fork@v1", undefined),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Download", undefined, "echo actions/download-artifact@v4"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Download", "actions/download-artifact@v4", undefined),
+      { low: 2, high: 20 }
+    );
+  });
+
   it("does not estimate a similarly named action as actions/upload-artifact", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Upload", "acme/actions/upload-artifact-fork@v1", undefined),
