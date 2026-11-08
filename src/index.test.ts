@@ -1577,6 +1577,17 @@ jobs:
     );
   });
 
+  it("does not estimate a similarly named action as actions/upload-artifact", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Upload", "acme/actions/upload-artifact-fork@v1", undefined),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Upload", "actions/upload-artifact@v4", undefined),
+      { low: 3, high: 25 }
+    );
+  });
+
   it("estimates the official cache action through a workflow", () => {
     const tmpFile = join(tmpdir(), `test-workflow-actions-cache-${Date.now()}.yml`);
     writeFileSync(
