@@ -1434,6 +1434,21 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("only estimates setup-go from the official uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "acme/actions/setup-go-fork@v1", undefined),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", undefined, "echo actions/setup-go@v4"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Setup", "actions/setup-go@v4", undefined),
+      { low: 2, high: 20 }
+    );
+  });
+
   it("matches setup-node only in uses through the full workflow path", () => {
     assert.deepEqual(
       estimateStepDurationForTest("actions/setup-node@v4", undefined, "echo ok"),
