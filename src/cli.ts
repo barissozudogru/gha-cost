@@ -299,7 +299,7 @@ function collectWorkflowFiles(file?: string): string[] {
   }
 
   const yamlFiles = entries
-    .filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"))
+    .filter((f) => /\.ya?ml$/i.test(f))
     .map((f) => join(workflowDir, f));
 
   if (yamlFiles.length === 0) {
