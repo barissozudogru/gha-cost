@@ -8,7 +8,7 @@ import {
   computeMatrixCombinationsForTest,
   formatDuration,
 } from "./index.js";
-import { writeFileSync, unlinkSync } from "node:fs";
+import { writeFileSync, unlinkSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { spawnSync } from "node:child_process";
@@ -28,6 +28,37 @@ describe("formatDuration", () => {
 });
 
 describe("CLI push frequency", () => {
+  it("auto-discovers workflow files with uppercase YAML extensions", () => {
+    const directory = mkdtempSync(join(tmpdir(), "gha-cost-uppercase-extension-"));
+    const workflowDirectory = join(directory, ".github", "workflows");
+    mkdirSync(workflowDirectory, { recursive: true });
+    writeFileSync(
+      join(workflowDirectory, "CI.YML"),
+      [
+        "name: Uppercase extension",
+        "on: push",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    steps:",
+        "      - run: echo hello",
+      ].join("\n"),
+      "utf-8"
+    );
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), "--json"],
+        { cwd: directory, encoding: "utf-8" }
+      );
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(JSON.parse(result.stdout)[0]?.file, "CI.YML");
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("rejects a missing --pushes value instead of consuming the next flag", () => {
     const result = spawnSync(
       process.execPath,
