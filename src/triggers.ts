@@ -157,7 +157,9 @@ export function parseTriggers(content: string): WorkflowTriggers {
         }
         inOnBlock = false;
       } else if (inline.startsWith("{") && inline.endsWith("}")) {
-        names.push(...parseFlowMappingKeys(inline));
+        for (const name of parseFlowMappingKeys(inline)) {
+          if (!names.includes(name)) names.push(name);
+        }
         inOnBlock = false;
       } else if (inline.startsWith("{")) {
         flowMapping = inline;
@@ -178,7 +180,9 @@ export function parseTriggers(content: string): WorkflowTriggers {
       flowMapping += ` ${trimmed}`;
       flowMappingDepth += flowBraceBalance(trimmed);
       if (flowMappingDepth <= 0) {
-        names.push(...parseFlowMappingKeys(flowMapping));
+        for (const name of parseFlowMappingKeys(flowMapping)) {
+          if (!names.includes(name)) names.push(name);
+        }
         flowMapping = "";
         inOnBlock = false;
       }

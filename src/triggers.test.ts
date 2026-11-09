@@ -109,6 +109,13 @@ test("inline trigger lists do not report duplicate triggers", () => {
   );
 });
 
+test("flow trigger mappings do not report duplicate triggers", () => {
+  assert.deepEqual(
+    parseTriggers("on: { push: {}, push: {}, workflow_dispatch: {} }\njobs:\n  a:\n").names,
+    ["push", "workflow_dispatch"]
+  );
+});
+
 test("block sequence trigger lists parse", () => {
   const triggers = parseTriggers(
     "on:\n  - push\n  - workflow_dispatch\njobs:\n  a:\n"
@@ -143,6 +150,13 @@ test("multiline flow-style trigger mappings parse their top-level keys", () => {
   assert.deepEqual(triggers.names, ["push", "workflow_dispatch"]);
   assert.equal(triggers.hasPushLike, true);
   assert.equal(triggers.manualOnly, false);
+});
+
+test("multiline flow trigger mappings do not report duplicate triggers", () => {
+  assert.deepEqual(
+    parseTriggers("on: {\n  push: {},\n  push: {},\n  workflow_dispatch: {}\n}\njobs:\n  a:\n").names,
+    ["push", "workflow_dispatch"]
+  );
 });
 
 test("nested keys are not mistaken for triggers", () => {
