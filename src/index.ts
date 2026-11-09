@@ -497,6 +497,16 @@ function stripOuterQuotes(value: string): string {
   return value;
 }
 
+function normalizeMatrixValue(value: string): string {
+  const trimmed = value.trim();
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+  if ((first === "'" || first === '"') && last === first && trimmed.slice(1, -1).includes(",")) {
+    return trimmed;
+  }
+  return stripOuterQuotes(trimmed);
+}
+
 function splitInlineValues(value: string): string[] {
   const parts: string[] = [];
   let start = 0;
@@ -564,7 +574,7 @@ function parseInlineArray(value: string): string[] {
             const colonIdx = pair.indexOf(":");
             if (colonIdx !== -1) {
               const k = stripOuterQuotes(pair.slice(0, colonIdx).trim());
-              const v = stripInlineComment(pair.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+              const v = normalizeMatrixValue(stripInlineComment(pair.slice(colonIdx + 1)));
               return `${k}: ${v}`;
             }
             return pair.trim();
@@ -655,7 +665,7 @@ function parseMatrixIncludeExclude(
           const colonIdx = pair.indexOf(":");
           if (colonIdx !== -1) {
             const k = stripOuterQuotes(pair.slice(0, colonIdx).trim());
-            const v = stripInlineComment(pair.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+            const v = normalizeMatrixValue(stripInlineComment(pair.slice(colonIdx + 1)));
             if (k) currentItem[k] = v;
           }
         }
@@ -663,7 +673,7 @@ function parseMatrixIncludeExclude(
         const colonIdx = afterDash.indexOf(":");
         if (colonIdx !== -1) {
           const k = stripOuterQuotes(afterDash.slice(0, colonIdx).trim());
-          const v = stripInlineComment(afterDash.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+          const v = normalizeMatrixValue(stripInlineComment(afterDash.slice(colonIdx + 1)));
           if (k) currentItem[k] = v;
         } else if (afterDash !== "") {
           currentItem["value"] = afterDash.replace(/^['"]|['"]$/g, "");
@@ -677,7 +687,7 @@ function parseMatrixIncludeExclude(
       const colonIdx = trimmed.indexOf(":");
       if (colonIdx !== -1) {
         const k = stripOuterQuotes(trimmed.slice(0, colonIdx).trim());
-        const v = stripInlineComment(trimmed.slice(colonIdx + 1).trim()).replace(/^['"]|['"]$/g, "");
+        const v = normalizeMatrixValue(stripInlineComment(trimmed.slice(colonIdx + 1)));
         if (k) currentItem[k] = v;
       }
       i++;

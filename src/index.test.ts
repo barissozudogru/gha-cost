@@ -976,6 +976,31 @@ jobs:
     }
   });
 
+  it("keeps commas inside quoted inline include values", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-include-quoted-comma",
+      `
+name: Matrix Include Quoted Comma Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        version: [18, 20]
+        include: [{ version: "18,20" }]
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 3);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("subtracts exclude entries from combination count", () => {
     // 2 os * 2 node = 4 combinations, minus 1 exclude = 3 jobs.
     const tmpFile = writeTempYaml(
