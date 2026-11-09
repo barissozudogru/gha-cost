@@ -2008,6 +2008,27 @@ jobs:
 });
 
 describe("YAML step sequence parsing", () => {
+  it("keeps a valid step whose run command is an empty string", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-empty-run-${Date.now()}.yml`);
+    const yaml = `
+name: Empty Run Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: ""
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.name, "unnamed step");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("collects steps written with a bare sequence dash", () => {
     const tmpFile = join(tmpdir(), `test-workflow-bare-step-dash-${Date.now()}.yml`);
     const yaml = `
