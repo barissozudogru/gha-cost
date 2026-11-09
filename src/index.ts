@@ -1102,7 +1102,10 @@ function parseWorkflowYaml(content: string): RawWorkflow {
           }
 
           // Push last step
-          if (currentStep && (currentStep.name || currentStep.uses || currentStep.run)) {
+          if (
+            currentStep &&
+            ("name" in currentStep || "uses" in currentStep || "run" in currentStep)
+          ) {
             job.steps.push({
               name: currentStep.name ?? "unnamed step",
               uses: currentStep.uses,
