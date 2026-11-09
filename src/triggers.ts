@@ -153,7 +153,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
       if (inline.startsWith("[")) {
         for (const part of inline.replace(/^\[|\]$/g, "").split(",")) {
           const name = part.trim().replace(/^['"]|['"]$/g, "");
-          if (name) names.push(name);
+          if (name && !names.includes(name)) names.push(name);
         }
         inOnBlock = false;
       } else if (inline.startsWith("{") && inline.endsWith("}")) {
