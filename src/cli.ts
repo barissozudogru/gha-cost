@@ -231,7 +231,10 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       }
       i++;
       const val = Number(raw);
-      if (raw.trim() !== "" && Number.isFinite(val) && val >= 0) selfHostedRate = val;
+      if (Number.isFinite(val) && val < 0) {
+        throw new Error("--self-hosted-rate must be non-negative");
+      }
+      if (raw.trim() !== "" && Number.isFinite(val)) selfHostedRate = val;
     } else if (arg.startsWith("-")) {
       throw new Error(`Unknown option: ${arg}`);
     } else if (!arg.startsWith("-")) {
