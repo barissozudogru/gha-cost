@@ -477,6 +477,33 @@ jobs:
     }
   });
 
+  it("rejects a negative self-hosted rate", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-negative-rate-${Date.now()}.yml`);
+    const yaml = `
+name: Negative Self Hosted Rate Test
+jobs:
+  build:
+    runs-on: self-hosted
+    steps:
+      - name: Build
+        run: echo "hello"
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), "--file", tmpFile, "--self-hosted-rate", "-1", "--json"],
+        { encoding: "utf-8" }
+      );
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /--self-hosted-rate must be non-negative/);
+      assert.equal(result.stdout, "");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("detects self-hosted runner even if linux is in the label array", () => {
     const tmpFile = join(tmpdir(), `test-workflow-sh-linux-${Date.now()}.yml`);
     const yaml = `
