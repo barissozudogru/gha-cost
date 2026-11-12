@@ -102,6 +102,20 @@ test("all three on: forms parse", () => {
   assert.deepEqual(parseTriggers(block).names, ["push", "workflow_dispatch"]);
 });
 
+test("multiline flow trigger sequences parse", () => {
+  const workflow = [
+    "on: [",
+    "  push,",
+    "  workflow_dispatch",
+    "]",
+    "jobs:",
+    "  a:",
+  ].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.names, ["push", "workflow_dispatch"]);
+  assert.equal(triggers.hasPushLike, true);
+});
+
 test("inline trigger lists do not report duplicate triggers", () => {
   assert.deepEqual(
     parseTriggers("on: [push, push, workflow_dispatch]\njobs:\n  a:\n").names,

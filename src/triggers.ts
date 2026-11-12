@@ -112,6 +112,30 @@ function parseFlowMappingKeys(value: string): string[] {
   return keys;
 }
 
+function flowSequenceBalance(value: string): number {
+  let balance = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (quote) {
+      if (char === quote && value[i - 1] !== "\\") quote = null;
+      continue;
+    }
+    if (char === "'" || char === '"') quote = char;
+    else if (char === "[") balance++;
+    else if (char === "]") balance--;
+  }
+  return balance;
+}
+
+function parseFlowSequenceNames(value: string): string[] {
+  return value
+    .slice(1, -1)
+    .split(",")
+    .map((part) => part.trim().replace(/^['"]|['"]$/g, ""))
+    .filter(Boolean);
+}
+
 /**
  * Parse the top-level `on:` block.
  *
@@ -130,6 +154,8 @@ export function parseTriggers(content: string): WorkflowTriggers {
   let triggerIndent: number | null = null;
   let flowMapping = "";
   let flowMappingDepth = 0;
+  let flowSequence = "";
+  let flowSequenceDepth = 0;
 
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
@@ -151,11 +177,15 @@ export function parseTriggers(content: string): WorkflowTriggers {
       const inline = m[1].trim();
 
       if (inline.startsWith("[")) {
-        for (const part of inline.replace(/^\[|\]$/g, "").split(",")) {
-          const name = part.trim().replace(/^['"]|['"]$/g, "");
-          if (name && !names.includes(name)) names.push(name);
+        if (inline.endsWith("]")) {
+          for (const name of parseFlowSequenceNames(inline)) {
+            if (name && !names.includes(name)) names.push(name);
+          }
+          inOnBlock = false;
+        } else {
+          flowSequence = inline;
+          flowSequenceDepth = flowSequenceBalance(inline);
         }
-        inOnBlock = false;
       } else if (inline.startsWith("{") && inline.endsWith("}")) {
         for (const name of parseFlowMappingKeys(inline)) {
           if (!names.includes(name)) names.push(name);
@@ -184,6 +214,19 @@ export function parseTriggers(content: string): WorkflowTriggers {
           if (!names.includes(name)) names.push(name);
         }
         flowMapping = "";
+        inOnBlock = false;
+      }
+      continue;
+    }
+
+    if (flowSequence) {
+      flowSequence += ` ${trimmed}`;
+      flowSequenceDepth += flowSequenceBalance(trimmed);
+      if (flowSequenceDepth <= 0) {
+        for (const name of parseFlowSequenceNames(flowSequence)) {
+          if (!names.includes(name)) names.push(name);
+        }
+        flowSequence = "";
         inOnBlock = false;
       }
       continue;
