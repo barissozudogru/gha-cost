@@ -551,8 +551,10 @@ function parseMatrixValues(lines: string[], startIndex: number, indent: number):
     const lineIndent = getIndent(line);
     if (lineIndent < indent) break;
     if (lineIndent === indent && line.trimStart().startsWith("- ")) {
-      const val = stripOuterQuotes(stripInlineComment(line.trimStart().slice(2)));
-      if (val !== "") values.push(val);
+      const rawValue = stripInlineComment(line.trimStart().slice(2));
+      const val = stripOuterQuotes(rawValue);
+      const isQuotedEmptyValue = /^(['"])\1$/.test(rawValue);
+      if (val !== "" || isQuotedEmptyValue) values.push(val);
     }
     i++;
   }
