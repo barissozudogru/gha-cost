@@ -1010,6 +1010,8 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         ) {
           i++;
           let currentStep: Partial<RawStep> | null = null;
+          let activeStepListIndent = stepListIndent;
+          let activeStepPropIndent = stepPropIndent;
 
           while (i < lines.length) {
             const stepLine = lines[i];
@@ -1021,11 +1023,23 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
             const stepIndent = getIndent(stepLine);
 
+            // YAML also permits an indentless sequence under a mapping key:
+            // `steps:` followed by list items at the key's indentation.
+            // In that form step properties are one indent unit below the
+            // list item rather than at the usual stepPropIndent.
+            if (
+              stepIndent === jobChildIndent &&
+              /^-(?:\s|$)/.test(stepLine.trimStart())
+            ) {
+              activeStepListIndent = jobChildIndent;
+              activeStepPropIndent = jobChildIndent + indentUnit;
+            }
+
             if (stepIndent < jobChildIndent) break;
 
-            // New step item - list items are at stepListIndent (jobIndent * 3)
+            // New step item - list items use the workflow's sequence indentation.
             if (
-              stepIndent === stepListIndent &&
+              stepIndent === activeStepListIndent &&
               /^-(?:\s|$)/.test(stepLine.trimStart())
             ) {
               if (currentStep) {
@@ -1057,7 +1071,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                       i++;
                       continue;
                     }
-                    if (getIndent(runLine) <= stepPropIndent) break;
+                    if (getIndent(runLine) <= activeStepPropIndent) break;
                     val += " " + runLine.trim();
                     i++;
                   }
@@ -1072,7 +1086,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
             }
 
             // Step properties at stepPropIndent (jobIndent * 4)
-            if (stepIndent === stepPropIndent && currentStep !== null) {
+            if (stepIndent === activeStepPropIndent && currentStep !== null) {
               const propMatch = stepLine
                 .trimStart()
                 .match(
@@ -1095,7 +1109,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                       i++;
                       continue;
                     }
-                    if (getIndent(runLine) <= stepPropIndent) break;
+                    if (getIndent(runLine) <= activeStepPropIndent) break;
                     val += " " + runLine.trim();
                     i++;
                   }
