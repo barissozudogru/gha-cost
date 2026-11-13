@@ -2135,6 +2135,30 @@ jobs:
       unlinkSync(tmpFile);
     }
   });
+
+  it("collects steps from an indentless sequence", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-indentless-steps-${Date.now()}.yml`);
+    const yaml = `
+name: Indentless Steps Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Build
+      run: npm test
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.steps.length, 1);
+      assert.equal(estimate.jobs[0]?.steps[0]?.name, "Build");
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, "npm test");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
 });
 
 describe("workflow key parsing", () => {
