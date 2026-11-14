@@ -492,7 +492,8 @@ function stripOuterQuotes(value: string): string {
   const first = value[0];
   const last = value[value.length - 1];
   if ((first === "'" || first === '"') && last === first) {
-    return value.slice(1, -1);
+    const inner = value.slice(1, -1);
+    return first === "'" ? inner.replace(/''/g, "'") : inner;
   }
   return value;
 }

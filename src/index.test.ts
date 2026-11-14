@@ -2421,6 +2421,26 @@ name: Quoted Jobs Test
     }
   });
 
+  it("decodes doubled apostrophes in single-quoted workflow names", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-escaped-apostrophe-${Date.now()}.yml`);
+    const yaml = [
+      "name: 'Release: O''Reilly'",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      "      - run: echo ok",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.workflowName, "Release: O'Reilly");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses a quoted top-level jobs key with whitespace before the colon", () => {
     const tmpFile = join(tmpdir(), `test-workflow-spaced-jobs-key-${Date.now()}.yml`);
     const yaml = `
