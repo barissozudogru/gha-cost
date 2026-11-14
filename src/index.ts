@@ -568,8 +568,11 @@ function parseInlineArray(value: string): string[] {
   const match = value.match(/^\[(.+)\]$/);
   if (!match) return [];
   const inner = match[1];
-  if (inner.includes("{")) {
-    const objects = [...inner.matchAll(/\{([^}]+)\}/g)].map((m) => m[1].trim());
+  const parts = splitInlineValues(inner);
+  if (parts.some((part) => part.trimStart().startsWith("{"))) {
+    const objects = parts
+      .map((part) => part.trim().match(/^\{(.+)\}$/)?.[1].trim())
+      .filter((object): object is string => object !== undefined);
     if (objects.length > 0) {
       return objects.map((obj) =>
         splitInlineValues(obj)
@@ -586,7 +589,7 @@ function parseInlineArray(value: string): string[] {
       );
     }
   }
-  return splitInlineValues(inner)
+  return parts
     .filter((v) => v.trim() !== "")
     .map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
 }
