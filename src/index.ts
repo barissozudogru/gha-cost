@@ -488,12 +488,30 @@ function stripInlineCommentPreservingIndent(value: string): string {
   return indentation + stripInlineComment(value);
 }
 
+function decodeDoubleQuotedScalar(value: string): string {
+  let decoded = "";
+  for (let i = 0; i < value.length; i++) {
+    if (value[i] === "\\" && i + 1 < value.length) {
+      const next = value[i + 1];
+      if (next === "\\" || next === '"') {
+        decoded += next;
+        i++;
+        continue;
+      }
+    }
+    decoded += value[i];
+  }
+  return decoded;
+}
+
 function stripOuterQuotes(value: string): string {
   const first = value[0];
   const last = value[value.length - 1];
   if ((first === "'" || first === '"') && last === first) {
     const inner = value.slice(1, -1);
-    return first === "'" ? inner.replace(/''/g, "'") : inner;
+    return first === "'"
+      ? inner.replace(/''/g, "'")
+      : decodeDoubleQuotedScalar(inner);
   }
   return value;
 }
