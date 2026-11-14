@@ -2441,6 +2441,29 @@ name: Quoted Jobs Test
     }
   });
 
+  it("decodes escaped double quotes without consuming escaped backslashes", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-escaped-double-quote-${Date.now()}.yml`);
+    const yaml = [
+      String.raw`name: "a\\\"b"`,
+      "jobs:",
+      "  build:",
+      String.raw`    name: "a\\\"b"`,
+      "    runs-on: ubuntu-latest",
+      "    steps:",
+      String.raw`      - name: "a\\\"b"`,
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.workflowName, 'a\\"b');
+      assert.equal(estimate.jobs[0]?.name, 'a\\"b');
+      assert.equal(estimate.jobs[0]?.steps[0]?.name, 'a\\"b');
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses a quoted top-level jobs key with whitespace before the colon", () => {
     const tmpFile = join(tmpdir(), `test-workflow-spaced-jobs-key-${Date.now()}.yml`);
     const yaml = `
