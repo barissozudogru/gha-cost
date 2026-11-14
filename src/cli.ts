@@ -201,6 +201,9 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
     } else if (arg === "--json") {
       json = true;
     } else if (arg === "--file" || arg === "-f") {
+      if (file !== undefined) {
+        throw new Error("Only one workflow file may be specified");
+      }
       const path = args[i + 1];
       if (!path || path.startsWith("-")) {
         throw new Error(`${arg} requires a path`);
@@ -239,6 +242,9 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       throw new Error(`Unknown option: ${arg}`);
     } else if (!arg.startsWith("-")) {
       // Positional argument treated as file path
+      if (file !== undefined) {
+        throw new Error("Only one workflow file may be specified");
+      }
       file = arg;
     }
   }

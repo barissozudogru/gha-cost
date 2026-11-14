@@ -107,6 +107,25 @@ describe("CLI push frequency", () => {
     assert.equal(result.stdout, "");
   });
 
+  for (const [label, args] of [
+    ["a second positional path", ["--file", "README.md", "CONTRIBUTING.md"]],
+    ["a repeated --file option", ["--file", "README.md", "--file", "CONTRIBUTING.md"]],
+    ["a repeated -f option", ["-f", "README.md", "-f", "CONTRIBUTING.md"]],
+    ["two positional paths", ["README.md", "CONTRIBUTING.md"]],
+  ] as const) {
+    it(`rejects ${label} instead of silently discarding one`, () => {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), ...args],
+        { encoding: "utf-8" }
+      );
+
+      assert.equal(result.status, 1);
+      assert.match(result.stderr, /Only one workflow file may be specified/);
+      assert.equal(result.stdout, "");
+    });
+  }
+
   for (const option of ["--json", "--unknown-option", "--"]) {
     it(`rejects a missing --self-hosted-rate before ${option}`, () => {
       const result = spawnSync(
