@@ -498,6 +498,11 @@ function decodeDoubleQuotedScalar(value: string): string {
         i++;
         continue;
       }
+      if (next === "n") {
+        decoded += "\n";
+        i++;
+        continue;
+      }
     }
     decoded += value[i];
   }
