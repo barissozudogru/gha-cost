@@ -737,6 +737,29 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("keeps braces inside quoted inline matrix values", () => {
+    const tmpFile = writeTempYaml(
+      "inline-matrix-braces",
+      `
+name: Inline Matrix Braces Test
+jobs:
+  job1:
+    strategy:
+      matrix: { label: ["{linux}", ubuntu-latest] }
+    runs-on: ubuntu-latest
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 2);
+      assert.deepEqual(estimate.jobs[0]?.matrix[0]?.values, ["{linux}", "ubuntu-latest"]);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("resolves a matrix of one platform to that platform's rate", () => {
     const tmpFile = writeTempYaml(
       "matrix-ubuntu",
