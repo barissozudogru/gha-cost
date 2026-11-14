@@ -990,6 +990,33 @@ jobs:
     }
   });
 
+  it("keeps bare empty items in block matrix value lists", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-bare-empty-block-value",
+      `
+name: Matrix Bare Empty Block Value Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        label:
+        -
+        - linux
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`
+    );
+
+    try {
+      const job = estimateWorkflow(tmpFile, 10).jobs[0];
+      assert.deepEqual(job.matrix[0]?.values, ["", "linux"]);
+      assert.equal(job.matrixCombinations, 2);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("adds include entries to combination count instead of multiplying", () => {
     // 2 os values * 2 node values = 4 base combinations.
     // include adds 2 combinations for 6 total jobs.

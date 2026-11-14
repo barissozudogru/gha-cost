@@ -550,11 +550,12 @@ function parseMatrixValues(lines: string[], startIndex: number, indent: number):
     }
     const lineIndent = getIndent(line);
     if (lineIndent < indent) break;
-    if (lineIndent === indent && line.trimStart().startsWith("- ")) {
-      const rawValue = stripInlineComment(line.trimStart().slice(2));
+    if (lineIndent === indent && /^-(?:\s|$)/.test(line.trimStart())) {
+      const rawValue = stripInlineComment(line.trimStart().slice(1).trim());
       const val = stripOuterQuotes(rawValue);
       const isQuotedEmptyValue = /^(['"])\1$/.test(rawValue);
-      if (val !== "" || isQuotedEmptyValue) values.push(val);
+      const isBareEmptyValue = rawValue === "";
+      if (val !== "" || isQuotedEmptyValue || isBareEmptyValue) values.push(val);
     }
     i++;
   }
@@ -958,7 +959,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     if (valueLine.trim() === "" || valueLine.trim().startsWith("#")) continue;
                     if (
                       getIndent(valueLine) >= matrixKeyIndent &&
-                      valueLine.trimStart().startsWith("- ")
+                      /^-(?:\s|$)/.test(valueLine.trimStart())
                     ) {
                       valueIndent = getIndent(valueLine);
                     }
@@ -974,7 +975,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     }
                     if (
                       getIndent(vl) < valueIndent ||
-                      !vl.trimStart().startsWith("- ")
+                      !/^-(?:\s|$)/.test(vl.trimStart())
                     )
                       break;
                     i++;
