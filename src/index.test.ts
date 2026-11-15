@@ -2709,6 +2709,33 @@ jobs:
     }
   });
 
+  it("parses matrix dimensions with inline YAML comments", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-matrix-dimension-comment-${Date.now()}.yml`);
+    const yaml = `
+name: Matrix Dimension Comment Test
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: # supported platforms
+          - ubuntu-latest
+          - macos-latest
+    runs-on: \${{ matrix.os }}
+    steps:
+      - run: echo ok
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const job = estimateWorkflow(tmpFile, 10).jobs[0];
+      assert.deepEqual(job.matrix[0]?.values, ["ubuntu-latest", "macos-latest"]);
+      assert.equal(job.matrixCombinations, 2);
+      assert.equal(job.runner, "macos");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses quoted matrix keys with spacing and comments", () => {
     for (const [index, matrixKey] of [
       '"matrix":',

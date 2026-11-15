@@ -952,9 +952,10 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 }
                 if (getIndent(matLine) <= strategyIndent) break;
 
+                const matContent = stripInlineComment(matLine).trimStart();
+
                 // Matrix key: [values] (inline)
-                const inlineMatch = matLine
-                  .trimStart()
+                const inlineMatch = matContent
                   .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*(\[.+\])/);
                 if (inlineMatch && getIndent(matLine) === matrixKeyIndent) {
                   const key = inlineMatch[1] ?? inlineMatch[2] ?? inlineMatch[3];
@@ -967,8 +968,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 }
 
                 // Matrix key: (block list)
-                const blockMatch = matLine
-                  .trimStart()
+                const blockMatch = matContent
                   .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*$/);
                 if (blockMatch && getIndent(matLine) === matrixKeyIndent) {
                   const key = blockMatch[1] ?? blockMatch[2] ?? blockMatch[3];
