@@ -2517,6 +2517,23 @@ name: Quoted Jobs Test
     }
   });
 
+  it("decodes escaped carriage returns in double-quoted workflow names", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-escaped-carriage-return-${Date.now()}.yml`);
+    const yaml = [
+      'name: "Build\\rRelease"',
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      assert.equal(estimateWorkflow(tmpFile, 1).workflowName, "Build\rRelease");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses a quoted top-level jobs key with whitespace before the colon", () => {
     const tmpFile = join(tmpdir(), `test-workflow-spaced-jobs-key-${Date.now()}.yml`);
     const yaml = `
