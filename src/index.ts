@@ -493,7 +493,7 @@ function decodeDoubleQuotedScalar(value: string): string {
   for (let i = 0; i < value.length; i++) {
     if (value[i] === "\\" && i + 1 < value.length) {
       const next = value[i + 1];
-      if (next === "\\" || next === '"') {
+      if (next === "\\" || next === '"' || next === "/") {
         decoded += next;
         i++;
         continue;
