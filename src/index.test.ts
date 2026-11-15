@@ -366,6 +366,31 @@ jobs:
     }
   });
 
+  it("does not suggest a dependency cache when install tokens cross literal lines", () => {
+    for (const [tool, install] of [["npm", "ci"], ["yarn", "install"], ["pnpm", "install"]]) {
+      const tmpFile = join(tmpdir(), `test-workflow-cross-line-${tool}-${Date.now()}-${Math.random()}.yml`);
+      const yaml = `
+name: Cross Line ${tool} Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          ${tool}
+          ${install}
+`;
+      writeFileSync(tmpFile, yaml, "utf-8");
+
+      try {
+        const estimate = estimateWorkflow(tmpFile, 1);
+        assert.equal(estimate.jobs[0]?.steps[0]?.run, `${tool}\n${install}`);
+        assert.deepEqual(estimate.hints, []);
+      } finally {
+        unlinkSync(tmpFile);
+      }
+    }
+  });
+
   it("does not treat similarly named actions as setup-node", () => {
     const tmpFile = join(tmpdir(), `test-workflow-setup-node-prefix-${Date.now()}.yml`);
     const yaml = `
@@ -2150,7 +2175,8 @@ jobs:
       try {
         const estimate = estimateWorkflow(tmpFile, 10);
         const step = estimate.jobs[0].steps[0];
-        assert.equal(step.run, "npm ci npm run build", `failed to collect script for ${header}`);
+        const expectedRun = header.startsWith("|") ? "npm ci\nnpm run build" : "npm ci npm run build";
+        assert.equal(step.run, expectedRun, `failed to collect script for ${header}`);
         assert.equal(step.estimatedSecondsLow, 15, `underpriced low duration for ${header}`);
         assert.equal(step.estimatedSecondsHigh, 120, `underpriced high duration for ${header}`);
       } finally {
@@ -2180,6 +2206,30 @@ jobs:
       assert.equal(step.estimatedSecondsLow, 15);
       assert.equal(step.estimatedSecondsHigh, 120);
       assert.equal(estimate.jobs[0].steps[1]?.uses, "actions/checkout@v4");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("does not join separate commands from a literal block into one command", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-literal-boundary-${Date.now()}-${Math.random()}.yml`);
+    const yaml = `
+name: Literal Boundary Test
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          npm
+          ci
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const step = estimateWorkflow(tmpFile, 1).jobs[0].steps[0];
+      assert.equal(step.run, "npm\nci");
+      assert.equal(step.estimatedSecondsLow, 0);
+      assert.equal(step.estimatedSecondsHigh, 60);
     } finally {
       unlinkSync(tmpFile);
     }
@@ -2326,7 +2376,7 @@ jobs:
       const estimate = estimateWorkflow(tmpFile, 10);
       assert.equal(estimate.jobs[0]?.steps.length, 2);
       assert.equal(estimate.jobs[0]?.steps[0]?.name, "Install and build");
-      assert.equal(estimate.jobs[0]?.steps[0]?.run, "npm ci npm run build");
+      assert.equal(estimate.jobs[0]?.steps[0]?.run, "npm ci\nnpm run build");
       assert.equal(estimate.jobs[0]?.steps[1]?.name, "Test");
       assert.equal(estimate.jobs[0]?.steps[1]?.run, "npm test");
     } finally {
