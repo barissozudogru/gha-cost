@@ -118,24 +118,24 @@ const STEP_DURATION_HEURISTICS: Array<{
   { pattern: /aws-actions\//i, low: 3, high: 25, label: "aws-action" },
   { pattern: /google-github-actions\//i, low: 3, high: 25, label: "gcp-action" },
   { pattern: /azure\//i, low: 3, high: 25, label: "azure-action" },
-  { pattern: /npm\s+(ci|install)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "npm-install", cacheSensitive: true },
-  { pattern: /npm\s+(run\s+)?test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "npm-test" },
-  { pattern: /npm\s+(run\s+)?build(?=$|[\s;&|()<>])/i, low: 10, high: 180, label: "npm-build" },
-  { pattern: /npm\s+(run\s+)?lint(?=$|[\s;&|()<>])/i, low: 5, high: 60, label: "npm-lint" },
-  { pattern: /yarn\s+(install|ci)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
-  { pattern: /yarn\s+(test|jest)(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "yarn-test" },
-  { pattern: /yarn\s+(?:run\s+)?build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "yarn-build" },
-  { pattern: /pnpm\s+(install|ci)(?=$|[\s;&|()<>])/i, low: 10, high: 100, label: "pnpm-install", cacheSensitive: true },
-  { pattern: /pnpm\s+test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "pnpm-test" },
-  { pattern: /pnpm\s+build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "pnpm-build" },
+  { pattern: /npm[ \t]+(ci|install)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "npm-install", cacheSensitive: true },
+  { pattern: /npm[ \t]+(run[ \t]+)?test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "npm-test" },
+  { pattern: /npm[ \t]+(run[ \t]+)?build(?=$|[\s;&|()<>])/i, low: 10, high: 180, label: "npm-build" },
+  { pattern: /npm[ \t]+(run[ \t]+)?lint(?=$|[\s;&|()<>])/i, low: 5, high: 60, label: "npm-lint" },
+  { pattern: /yarn[ \t]+(install|ci)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "yarn-install", cacheSensitive: true },
+  { pattern: /yarn[ \t]+(test|jest)(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "yarn-test" },
+  { pattern: /yarn[ \t]+(?:run[ \t]+)?build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "yarn-build" },
+  { pattern: /pnpm[ \t]+(install|ci)(?=$|[\s;&|()<>])/i, low: 10, high: 100, label: "pnpm-install", cacheSensitive: true },
+  { pattern: /pnpm[ \t]+test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "pnpm-test" },
+  { pattern: /pnpm[ \t]+build(?=$|[\s;&|()<>])/i, low: 15, high: 150, label: "pnpm-build" },
   { pattern: /pytest/i, low: 15, high: 300, label: "pytest" },
-  { pattern: /go\s+test/i, low: 20, high: 240, label: "go-test" },
-  { pattern: /go\s+build/i, low: 10, high: 150, label: "go-build" },
-  { pattern: /cargo\s+test/i, low: 45, high: 420, label: "cargo-test" },
-  { pattern: /cargo\s+build/i, low: 40, high: 360, label: "cargo-build" },
-  { pattern: /mvn\s+(test|verify)/i, low: 45, high: 400, label: "maven-test" },
-  { pattern: /gradle\s+(test|build)/i, low: 45, high: 400, label: "gradle-build" },
-  { pattern: /terraform\s+(plan|apply)/i, low: 15, high: 180, label: "terraform" },
+  { pattern: /go[ \t]+test/i, low: 20, high: 240, label: "go-test" },
+  { pattern: /go[ \t]+build/i, low: 10, high: 150, label: "go-build" },
+  { pattern: /cargo[ \t]+test/i, low: 45, high: 420, label: "cargo-test" },
+  { pattern: /cargo[ \t]+build/i, low: 40, high: 360, label: "cargo-build" },
+  { pattern: /mvn[ \t]+(test|verify)/i, low: 45, high: 400, label: "maven-test" },
+  { pattern: /gradle[ \t]+(test|build)/i, low: 45, high: 400, label: "gradle-build" },
+  { pattern: /terraform[ \t]+(plan|apply)/i, low: 15, high: 180, label: "terraform" },
   // Word-anchored. An unanchored /publish/i once matched a step named
   // "Published content identity scan", a shell one-liner measuring 0.1s.
   { pattern: /\bdeploy(s|ing|ment)?\b/i, low: 8, high: 90, label: "deploy" },
@@ -1101,18 +1101,19 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                 let val = stripOuterQuotes(stripInlineComment(keyMatch[4]));
                 let consumedBlock = false;
                 if (key === "run" && /^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
+                  const preserveLineBreaks = val.startsWith("|");
                   consumedBlock = true;
                   val = "";
                   i++;
                   while (i < lines.length) {
                     const runLine = lines[i];
-                    if (runLine.trim() === "") {
-                      val += " ";
+                  if (runLine.trim() === "") {
+                      val += preserveLineBreaks ? "\n" : " ";
                       i++;
                       continue;
                     }
                     if (getIndent(runLine) <= activeStepPropIndent) break;
-                    val += " " + runLine.trim();
+                    val += preserveLineBreaks ? "\n" + runLine.trim() : " " + runLine.trim();
                     i++;
                   }
                   val = val.trim();
@@ -1138,6 +1139,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
                 // Handle multi-line run blocks (pipe | or folded > with optional chomping or indent indicator)
                 if (/^([|>])([+-]?\d*|\d*[+-]?)$/.test(val)) {
+                  const preserveLineBreaks = val.startsWith("|");
                   val = "";
                   i++;
                   while (i < lines.length) {
@@ -1145,12 +1147,12 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     // Blank lines are valid inside a block scalar - include them
                     // and only stop when we see a non-blank line at <= stepPropIndent
                     if (runLine.trim() === "") {
-                      val += " ";
+                      val += preserveLineBreaks ? "\n" : " ";
                       i++;
                       continue;
                     }
                     if (getIndent(runLine) <= activeStepPropIndent) break;
-                    val += " " + runLine.trim();
+                    val += preserveLineBreaks ? "\n" + runLine.trim() : " " + runLine.trim();
                     i++;
                   }
                   val = val.trim();
@@ -1220,9 +1222,9 @@ function generateHints(jobs: JobEstimate[]): string[] {
     );
     const hasInstall = job.steps.some(
       (s) =>
-        /npm\s+(ci|install)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
-        /yarn\s+(install|ci)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
-        /pnpm\s+(install)(?=$|[\s;&|()<>])/i.test(s.run ?? "")
+        /npm[ \t]+(ci|install)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
+        /yarn[ \t]+(install|ci)(?=$|[\s;&|()<>])/i.test(s.run ?? "") ||
+        /pnpm[ \t]+(install)(?=$|[\s;&|()<>])/i.test(s.run ?? "")
     );
     if (hasInstall && !hasCache) {
       hints.push(
