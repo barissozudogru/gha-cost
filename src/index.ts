@@ -513,6 +513,11 @@ function decodeDoubleQuotedScalar(value: string): string {
         i++;
         continue;
       }
+      if (next === "x" && /^[0-9a-fA-F]{2}$/.test(value.slice(i + 2, i + 4))) {
+        decoded += String.fromCharCode(parseInt(value.slice(i + 2, i + 4), 16));
+        i += 3;
+        continue;
+      }
       if (next === "u" && /^[0-9a-fA-F]{4}$/.test(value.slice(i + 2, i + 6))) {
         decoded += String.fromCharCode(parseInt(value.slice(i + 2, i + 6), 16));
         i += 5;
