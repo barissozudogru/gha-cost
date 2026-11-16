@@ -736,6 +736,30 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("keeps empty values in inline matrix lists", () => {
+    const tmpFile = writeTempYaml(
+      "inline-matrix-empty-value",
+      `
+name: Inline Matrix Empty Value
+jobs:
+  build:
+    strategy:
+      matrix: { label: [, linux] }
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`
+    );
+
+    try {
+      const job = estimateWorkflow(tmpFile, 1).jobs[0];
+      assert.deepEqual(job.matrix[0]?.values, ["", "linux"]);
+      assert.equal(job.matrixCombinations, 2);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("ignores a trailing comma in an inline matrix value list", () => {
     const tmpFile = writeTempYaml(
       "inline-matrix-trailing-comma",

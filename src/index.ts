@@ -624,7 +624,9 @@ function parseInlineArray(value: string): string[] {
     }
   }
   return parts
-    .filter((v) => v.trim() !== "")
+    // Keep empty items inside a flow sequence as empty matrix values, while
+    // ignoring the empty item created by a trailing comma.
+    .filter((v, index) => !(index === parts.length - 1 && v.trim() === ""))
     .map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
 }
 
