@@ -868,7 +868,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
     // Job-level keys are at jobIndent and look like "  job-id:"
     // Must be exactly at job indent and be a key (no leading dash)
-    const jobKey = /^(?:"([\w-]+)"|'([\w-]+)'|(\w[\w-]*)):\s*(?:#.*)?$/.exec(line.trimStart());
+    const jobKey = /^(?:"([\w-]+)"|'([\w-]+)'|(\w[\w-]*))\s*:\s*(?:#.*)?$/.exec(line.trimStart());
     if (
       indent === jobIndent &&
       jobKey !== null
