@@ -2755,6 +2755,27 @@ jobs:
     }
   });
 
+  it("parses a job identifier with whitespace before the colon", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-spaced-job-${Date.now()}.yml`);
+    const yaml = `
+name: Spaced Job Test
+jobs:
+  build :
+    runs-on: ubuntu-latest
+    steps:
+      - run: npm test
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 10);
+      assert.equal(estimate.jobs.length, 1);
+      assert.equal(estimate.jobs[0]?.id, "build");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("parses jobs when the key has a YAML comment", () => {
     const tmpFile = join(tmpdir(), `test-workflow-commented-jobs-${Date.now()}-${Math.random()}.yml`);
     const yaml = [
