@@ -513,6 +513,19 @@ function decodeDoubleQuotedScalar(value: string): string {
         i++;
         continue;
       }
+      if (next === "u" && /^[0-9a-fA-F]{4}$/.test(value.slice(i + 2, i + 6))) {
+        decoded += String.fromCharCode(parseInt(value.slice(i + 2, i + 6), 16));
+        i += 5;
+        continue;
+      }
+      if (next === "U" && /^[0-9a-fA-F]{8}$/.test(value.slice(i + 2, i + 10))) {
+        const codePoint = parseInt(value.slice(i + 2, i + 10), 16);
+        if (codePoint <= 0x10ffff) {
+          decoded += String.fromCodePoint(codePoint);
+          i += 9;
+          continue;
+        }
+      }
     }
     decoded += value[i];
   }
@@ -627,7 +640,7 @@ function parseInlineArray(value: string): string[] {
     // Keep empty items inside a flow sequence as empty matrix values, while
     // ignoring the empty item created by a trailing comma.
     .filter((v, index) => !(index === parts.length - 1 && v.trim() === ""))
-    .map((v) => stripInlineComment(v.trim()).replace(/^['"]|['"]$/g, ""));
+    .map((v) => stripOuterQuotes(stripInlineComment(v.trim())));
 }
 
 function parseInlineMatrix(value: string): MatrixDimension[] {

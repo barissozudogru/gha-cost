@@ -736,6 +736,30 @@ ${MATRIX_STEPS_YAML}
     }
   });
 
+  it("decodes unicode escapes in inline matrix values", () => {
+    const tmpFile = writeTempYaml(
+      "inline-matrix-unicode",
+      String.raw`
+name: Inline Matrix Unicode Test
+jobs:
+  job1:
+    strategy:
+      matrix: { label: ["a\u0020b", "\U0001D11E"] }
+    runs-on: ubuntu-latest
+${MATRIX_STEPS_YAML}
+`
+    );
+
+    try {
+      assert.deepEqual(
+        estimateWorkflow(tmpFile, 1).jobs[0]?.matrix[0]?.values,
+        ["a b", String.fromCodePoint(0x1d11e)]
+      );
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("keeps empty values in inline matrix lists", () => {
     const tmpFile = writeTempYaml(
       "inline-matrix-empty-value",
@@ -2586,6 +2610,28 @@ name: Quoted Jobs Test
 
     try {
       assert.equal(estimateWorkflow(tmpFile, 1).workflowName, "Build\tRelease");
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("decodes unicode escapes in double-quoted run commands", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-unicode-run-${Date.now()}.yml`);
+    const yaml = [
+      "name: Unicode Run Escape",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      String.raw`    steps:
+      - run: "npm\u0020test"`,
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const step = estimateWorkflow(tmpFile, 1).jobs[0]?.steps[0];
+      assert.equal(step?.run, "npm test");
+      assert.equal(step?.estimatedSecondsLow, 20);
+      assert.equal(step?.estimatedSecondsHigh, 300);
     } finally {
       unlinkSync(tmpFile);
     }
