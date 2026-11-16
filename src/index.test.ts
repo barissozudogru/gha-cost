@@ -2637,6 +2637,28 @@ name: Quoted Jobs Test
     }
   });
 
+  it("decodes hexadecimal escapes in double-quoted run commands", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-escaped-hex-${Date.now()}.yml`);
+    const yaml = [
+      "name: Hex Escape",
+      "jobs:",
+      "  build:",
+      "    runs-on: ubuntu-latest",
+      String.raw`    steps:
+      - run: "npm\x20test"`,
+    ].join("\n");
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const step = estimateWorkflow(tmpFile, 1).jobs[0]?.steps[0];
+      assert.equal(step?.run, "npm test");
+      assert.equal(step?.estimatedSecondsLow, 20);
+      assert.equal(step?.estimatedSecondsHigh, 300);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("decodes escaped carriage returns in double-quoted workflow names", () => {
     const tmpFile = join(tmpdir(), `test-workflow-escaped-carriage-return-${Date.now()}.yml`);
     const yaml = [
