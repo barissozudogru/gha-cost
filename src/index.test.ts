@@ -1078,6 +1078,31 @@ describe("matrix combinations with include and exclude", () => {
     return tmpFile;
   }
 
+  it("reports zero combinations for an explicitly empty inline dimension", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-empty-inline-dimension",
+      [
+        "name: Empty inline matrix",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    strategy:",
+        "      matrix:",
+        "        os: []",
+        "    steps:",
+        "      - run: echo hello",
+      ].join("\n")
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 0);
+      assert.equal(estimate.jobs[0]?.estimatedTotalSeconds, 0);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("keeps empty strings in block matrix value lists", () => {
     const tmpFile = writeTempYaml(
       "matrix-empty-block-value",

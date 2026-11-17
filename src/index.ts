@@ -617,7 +617,7 @@ function parseMatrixValues(lines: string[], startIndex: number, indent: number):
 
 function parseInlineArray(value: string): string[] {
   // Parse [a, b, c] or [1, 2, 3] or [{ os: windows, node: 20 }]
-  const match = value.match(/^\[(.+)\]$/);
+  const match = value.match(/^\[(.*)\]$/);
   if (!match) return [];
   const inner = match[1];
   const parts = splitInlineValues(inner);
@@ -981,13 +981,11 @@ function parseWorkflowYaml(content: string): RawWorkflow {
 
                 // Matrix key: [values] (inline)
                 const inlineMatch = matContent
-                  .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*(\[.+\])/);
+                  .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*(\[.*\])/);
                 if (inlineMatch && getIndent(matLine) === matrixKeyIndent) {
                   const key = inlineMatch[1] ?? inlineMatch[2] ?? inlineMatch[3];
                   const values = parseInlineArray(inlineMatch[4]);
-                  if (values.length > 0) {
-                    job.matrix.push({ key, values });
-                  }
+                  job.matrix.push({ key, values });
                   i++;
                   continue;
                 }
