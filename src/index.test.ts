@@ -1103,6 +1103,53 @@ describe("matrix combinations with include and exclude", () => {
     }
   });
 
+  it("reports zero combinations for an empty dimension in an inline matrix mapping", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-empty-inline-mapping-dimension",
+      [
+        "name: Empty inline mapping matrix",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    strategy:",
+        "      matrix: { os: [] }",
+        "    steps:",
+        "      - run: echo hello",
+      ].join("\n")
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 0);
+      assert.equal(estimate.jobs[0]?.estimatedTotalSeconds, 0);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("ignores an unparseable value in an inline matrix mapping", () => {
+    const tmpFile = writeTempYaml(
+      "matrix-unparseable-inline-mapping-value",
+      [
+        "name: Unparseable inline mapping matrix",
+        "jobs:",
+        "  build:",
+        "    runs-on: ubuntu-latest",
+        "    strategy:",
+        "      matrix: { os: ${{ fromJSON(inputs.os) }} }",
+        "    steps:",
+        "      - run: echo hello",
+      ].join("\n")
+    );
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1);
+      assert.equal(estimate.jobs[0]?.matrixCombinations, 1);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("keeps empty strings in block matrix value lists", () => {
     const tmpFile = writeTempYaml(
       "matrix-empty-block-value",
