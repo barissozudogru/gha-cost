@@ -677,6 +677,29 @@ describe("matrix runner resolution", () => {
     return tmpFile;
   }
 
+  it("parses a flow-style strategy matrix", () => {
+    const tmpFile = writeTempYaml(
+      "flow-strategy-matrix",
+      [
+        "name: Flow strategy matrix",
+        "jobs:",
+        "  build:",
+        "    runs-on: ${{ matrix.os }}",
+        "    strategy: { matrix: { os: [ubuntu-latest, windows-latest] } }",
+        "    steps:",
+        "      - uses: actions/checkout@v4",
+      ].join("\n")
+    );
+
+    try {
+      const job = estimateWorkflow(tmpFile, 1).jobs[0];
+      assert.equal(job?.matrixCombinations, 2);
+      assert.equal(job?.estimatedCostUsd, 0.006 + 0.01);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("bills each matrix combination on the runner it resolves to", () => {
     // checkout spans 1-25s (midpoint 13s) and npm ci 15-120s (midpoint 68s),
     // so every combination bills 2 rounded minutes. Before the fix the literal

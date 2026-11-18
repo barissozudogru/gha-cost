@@ -687,6 +687,21 @@ function parseInlineMatrix(value: string): MatrixDimension[] {
   return dimensions;
 }
 
+function parseInlineStrategyMatrix(value: string): MatrixDimension[] {
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("{") || !trimmed.endsWith("}")) return [];
+
+  for (const entry of splitInlineValues(trimmed.slice(1, -1))) {
+    const colonIndex = entry.indexOf(":");
+    if (colonIndex === -1) continue;
+    const key = stripOuterQuotes(entry.slice(0, colonIndex).trim());
+    if (key === "matrix") {
+      return parseInlineMatrix(entry.slice(colonIndex + 1).trim());
+    }
+  }
+  return [];
+}
+
 function parseMatrixIncludeExclude(
   lines: string[],
   startIndex: number,
@@ -954,10 +969,21 @@ function parseWorkflowYaml(content: string): RawWorkflow {
         }
 
         // strategy: - at jobChildIndent
-        if (
-          jobLineIndent === jobChildIndent &&
-          /^(?:strategy|"strategy"|'strategy')\s*:\s*(?:#.*)?$/.test(jobLine.trimStart())
-        ) {
+        const strategyMatch = jobLine.trimStart().match(
+          /^(?:strategy|"strategy"|'strategy')\s*:\s*(.*)$/
+        );
+        if (jobLineIndent === jobChildIndent && strategyMatch) {
+          const strategyValue = stripInlineComment(strategyMatch[1]);
+          const inlineMatrix = parseInlineStrategyMatrix(strategyValue);
+          if (inlineMatrix.length > 0) {
+            job.matrix.push(...inlineMatrix);
+            i++;
+            continue;
+          }
+          if (strategyValue !== "") {
+            i++;
+            continue;
+          }
           i++;
           while (i < lines.length) {
             const stratLine = lines[i];
