@@ -678,8 +678,11 @@ function parseInlineMatrix(value: string): MatrixDimension[] {
     const colonIndex = entry.indexOf(":");
     if (colonIndex === -1) continue;
     const key = stripOuterQuotes(entry.slice(0, colonIndex).trim());
-    const values = parseInlineArray(entry.slice(colonIndex + 1).trim());
-    if (key && values.length > 0) dimensions.push({ key, values });
+    const rawValue = entry.slice(colonIndex + 1).trim();
+    const values = parseInlineArray(rawValue);
+    if (key && (values.length > 0 || /^\[\s*\]$/.test(rawValue))) {
+      dimensions.push({ key, values });
+    }
   }
   return dimensions;
 }
