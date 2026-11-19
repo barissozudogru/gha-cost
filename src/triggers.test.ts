@@ -157,6 +157,23 @@ test("flow-style trigger mappings parse their top-level keys", () => {
   assert.equal(triggers.manualOnly, false);
 });
 
+test("flow-style trigger mappings collect nested schedule crons", () => {
+  const triggers = parseTriggers(
+    "on: { schedule: [{ cron: '0 8 * * 1' }] }\njobs:\n  a:\n"
+  );
+  assert.deepEqual(triggers.names, ["schedule"]);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
+});
+
+test("flow-style trigger mappings ignore cron-like text outside schedule entries", () => {
+  const triggers = parseTriggers(
+    "on: { schedule: [{ cron: '0 8 * * 1' }], workflow_dispatch: { inputs: { note: { description: \"See cron: '0 0 * * *'\" } } } }\njobs:\n  a:\n"
+  );
+  assert.deepEqual(triggers.names, ["schedule", "workflow_dispatch"]);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+});
+
 test("multiline flow-style trigger mappings parse their top-level keys", () => {
   const triggers = parseTriggers(
     "on: {\n  push: {},\n  workflow_dispatch: {}\n}\njobs:\n  a:\n"
