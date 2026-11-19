@@ -112,6 +112,44 @@ function parseFlowMappingKeys(value: string): string[] {
   return keys;
 }
 
+function parseFlowMappingCrons(value: string): string[] {
+  const splitEntries = (container: string): string[] => {
+    const inner = container.slice(1, -1);
+    const entries: string[] = [];
+    let start = 0;
+    let depth = 0;
+    let quote: string | null = null;
+
+    for (let i = 0; i < inner.length; i++) {
+      const char = inner[i];
+      if (quote) {
+        if (char === quote && inner[i - 1] !== "\\") quote = null;
+        continue;
+      }
+      if (char === "'" || char === '"') quote = char;
+      else if (char === "{" || char === "[") depth++;
+      else if (char === "}" || char === "]") depth--;
+      else if (char === "," && depth === 0) {
+        entries.push(inner.slice(start, i));
+        start = i + 1;
+      }
+    }
+    entries.push(inner.slice(start));
+    return entries;
+  };
+
+  for (const entry of splitEntries(value)) {
+    const schedule = /^(?:["']?schedule["']?)\s*:\s*(\[.*\])$/is.exec(entry.trim());
+    if (!schedule) continue;
+
+    return splitEntries(schedule[1]).flatMap((item) => {
+      const cron = /^(?:\{\s*)?["']?cron["']?\s*:\s*(?:"([^"]*)"|'([^']*)'|([^,}]+))/i.exec(item.trim());
+      return cron ? [(cron[1] ?? cron[2] ?? cron[3] ?? "").trim()].filter(Boolean) : [];
+    });
+  }
+  return [];
+}
+
 function flowSequenceBalance(value: string): number {
   let balance = 0;
   let quote: string | null = null;
@@ -190,6 +228,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
         for (const name of parseFlowMappingKeys(inline)) {
           if (!names.includes(name)) names.push(name);
         }
+        crons.push(...parseFlowMappingCrons(inline));
         inOnBlock = false;
       } else if (inline.startsWith("{")) {
         flowMapping = inline;
@@ -213,6 +252,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
         for (const name of parseFlowMappingKeys(flowMapping)) {
           if (!names.includes(name)) names.push(name);
         }
+        crons.push(...parseFlowMappingCrons(flowMapping));
         flowMapping = "";
         inOnBlock = false;
       }
