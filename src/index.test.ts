@@ -1776,6 +1776,17 @@ describe("step duration heuristics", () => {
     assert.deepEqual(r, { low: 8, high: 90 });
   });
 
+  it("only estimates AWS actions from the uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("Run AWS CLI", undefined, "echo aws-actions/example"),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Deploy", "aws-actions/configure-aws-credentials@v4", undefined),
+      { low: 3, high: 25 }
+    );
+  });
+
   it("does not treat a similarly named action as actions/checkout", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Checkout", "vendor/actions/checkout-extra@v1", undefined),
