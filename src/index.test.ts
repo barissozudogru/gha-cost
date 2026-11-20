@@ -727,6 +727,67 @@ describe("matrix runner resolution", () => {
     }
   });
 
+  it("parses a multiline flow-style matrix dimension", () => {
+    const tmpFile = writeTempYaml(
+      "multiline-flow-matrix",
+      [
+        "name: Multiline flow matrix",
+        "jobs:",
+        "  build:",
+        "    strategy:",
+        "      matrix:",
+        "        os: [",
+        "          ubuntu-latest,",
+        "          windows-latest",
+        "        ]",
+        "    runs-on: ${{ matrix.os }}",
+        "    steps:",
+        "      - run: echo test",
+      ].join("\n")
+    );
+
+    try {
+      const job = estimateWorkflow(tmpFile, 1).jobs[0];
+      assert.deepEqual(job?.matrix[0]?.values, ["ubuntu-latest", "windows-latest"]);
+      assert.equal(job?.matrixCombinations, 2);
+      assert.equal(job?.runner, "windows");
+      assert.equal(job?.estimatedCostUsd, 0.006 + 0.01);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("parses a flow-style matrix dimension with a separate opening bracket", () => {
+    const tmpFile = writeTempYaml(
+      "split-flow-matrix",
+      [
+        "name: Split flow matrix",
+        "jobs:",
+        "  build:",
+        "    strategy:",
+        "      matrix:",
+        "        os:",
+        "          [",
+        "            ubuntu-latest,",
+        "            windows-latest",
+        "          ]",
+        "    runs-on: ${{ matrix.os }}",
+        "    steps:",
+        "      - run: echo test",
+      ].join("\n")
+    );
+
+    try {
+      const job = estimateWorkflow(tmpFile, 1).jobs[0];
+      assert.deepEqual(job?.matrix[0]?.values, ["ubuntu-latest", "windows-latest"]);
+      assert.equal(job?.matrixCombinations, 2);
+      assert.equal(job?.runner, "windows");
+      assert.equal(job?.estimatedCostUsd, 0.006 + 0.01);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("bills each matrix combination on the runner it resolves to", () => {
     // checkout spans 1-25s (midpoint 13s) and npm ci 15-120s (midpoint 68s),
     // so every combination bills 2 rounded minutes. Before the fix the literal
