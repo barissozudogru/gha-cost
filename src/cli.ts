@@ -222,7 +222,7 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       }
       i++;
       const parsed = Number(raw);
-      if (/^\+?\d+$/.test(raw) && Number.isSafeInteger(parsed)) {
+      if ((raw === "-0" || /^\+?\d+$/.test(raw)) && Number.isSafeInteger(parsed)) {
         pushes = parsed;
       }
     } else if (arg === "--self-hosted-rate") {
