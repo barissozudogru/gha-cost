@@ -1814,6 +1814,21 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("only estimates Google Cloud actions from the uses field", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest(
+        "Mention google-github-actions/ in a note",
+        undefined,
+        "echo google-github-actions/example"
+      ),
+      { low: 0, high: 60 }
+    );
+    assert.deepEqual(
+      estimateStepDurationForTest("Deploy", "google-github-actions/deploy@v1", undefined),
+      { low: 3, high: 25 }
+    );
+  });
+
   it("does not treat a similarly named action as actions/checkout", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Checkout", "vendor/actions/checkout-extra@v1", undefined),
