@@ -590,6 +590,26 @@ function splitInlineValues(value: string): string[] {
   return parts;
 }
 
+function flowSequenceBalance(value: string): number {
+  let balance = 0;
+  let quote: string | null = null;
+  for (let i = 0; i < value.length; i++) {
+    const char = value[i];
+    if (quote) {
+      if (char === "\\") {
+        i++;
+      } else if (char === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (char === "'" || char === '"') quote = char;
+    else if (char === "[") balance++;
+    else if (char === "]") balance--;
+  }
+  return balance;
+}
+
 function parseMatrixValues(lines: string[], startIndex: number, indent: number): string[] {
   const values: string[] = [];
   let i = startIndex;
@@ -998,7 +1018,7 @@ function parseWorkflowYaml(content: string): RawWorkflow {
               /^(?:matrix|"matrix"|'matrix')\s*:\s*(?:#.*)?$/.test(stratLine.trimStart())
             ) {
               i++;
-              while (i < lines.length) {
+              matrixLines: while (i < lines.length) {
                 const matLine = lines[i];
                 if (matLine.trim() === "" || matLine.trim().startsWith("#")) {
                   i++;
@@ -1019,6 +1039,27 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                   continue;
                 }
 
+                const flowStart = matContent.match(
+                  /^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*(\[.*)$/
+                );
+                if (flowStart && getIndent(matLine) === matrixKeyIndent) {
+                  const key = flowStart[1] ?? flowStart[2] ?? flowStart[3];
+                  let flowValue = flowStart[4];
+                  i++;
+                  while (flowSequenceBalance(flowValue) > 0 && i < lines.length) {
+                    const nextLine = stripInlineComment(lines[i]).trim();
+                    flowValue += ` ${nextLine}`;
+                    i++;
+                  }
+                  if (flowSequenceBalance(flowValue) === 0) {
+                    const values = parseInlineArray(flowValue);
+                    if (values.length > 0 || /^\[\s*\]$/.test(flowValue)) {
+                      job.matrix.push({ key, values });
+                    }
+                  }
+                  continue;
+                }
+
                 // Matrix key: (block list)
                 const blockMatch = matContent
                   .match(/^(?:"([\w-]+)"|'([\w-]+)'|([\w-]+))\s*:\s*$/);
@@ -1036,6 +1077,33 @@ function parseWorkflowYaml(content: string): RawWorkflow {
                     }
                     i = parsed.nextIndex;
                     continue;
+                  }
+                  let flowIndex = i;
+                  while (flowIndex < lines.length) {
+                    const flowLine = lines[flowIndex];
+                    if (flowLine.trim() === "" || flowLine.trim().startsWith("#")) {
+                      flowIndex++;
+                      continue;
+                    }
+                    const flowStart = stripInlineComment(flowLine).trim();
+                    if (!flowStart.startsWith("[")) break;
+
+                    let flowValue = flowStart;
+                    flowIndex++;
+                    while (flowSequenceBalance(flowValue) > 0 && flowIndex < lines.length) {
+                      const nextLine = stripInlineComment(lines[flowIndex]).trim();
+                      flowValue += ` ${nextLine}`;
+                      flowIndex++;
+                    }
+                    if (flowSequenceBalance(flowValue) === 0) {
+                      const values = parseInlineArray(flowValue);
+                      if (values.length > 0 || /^\[\s*\]$/.test(flowValue)) {
+                        job.matrix.push({ key, values });
+                        i = flowIndex;
+                        continue matrixLines;
+                      }
+                    }
+                    break;
                   }
                   let valueIndent = matrixValueIndent;
                   for (let j = i; j < lines.length; j++) {
