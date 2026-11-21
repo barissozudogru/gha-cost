@@ -117,7 +117,7 @@ const STEP_DURATION_HEURISTICS: Array<{
   },
   { pattern: /aws-actions\//i, low: 3, high: 25, label: "aws-action", usesOnly: true },
   { pattern: /google-github-actions\//i, low: 3, high: 25, label: "gcp-action", usesOnly: true },
-  { pattern: /azure\//i, low: 3, high: 25, label: "azure-action" },
+  { pattern: /azure\//i, low: 3, high: 25, label: "azure-action", usesOnly: true },
   { pattern: /npm[ \t]+(ci|install)(?=$|[\s;&|()<>])/i, low: 15, high: 120, label: "npm-install", cacheSensitive: true },
   { pattern: /npm[ \t]+(run[ \t]+)?test(?=$|[\s;&|()<>])/i, low: 20, high: 300, label: "npm-test" },
   { pattern: /npm[ \t]+(run[ \t]+)?build(?=$|[\s;&|()<>])/i, low: 10, high: 180, label: "npm-build" },
