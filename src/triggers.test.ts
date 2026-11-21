@@ -230,6 +230,17 @@ test("schedule crons are collected", () => {
   assert.deepEqual(parseTriggers(wf).crons, ["0 8 * * 1", "0 20 * * 5"]);
 });
 
+test("inline schedule sequences under the on mapping are collected", () => {
+  const workflow = [
+    "on:",
+    "  schedule: [{ cron: '0 8 * * 1' }]",
+    "jobs:",
+  ].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
+});
+
 test("indentless schedule sequences are collected", () => {
   const workflow = [
     "on:",
