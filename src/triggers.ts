@@ -190,6 +190,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
   // Indent of the first trigger key inside the on: block. Local, so parsing one
   // workflow cannot affect the next.
   let triggerIndent: number | null = null;
+  let scheduleIndent: number | null = null;
   let flowMapping = "";
   let flowMappingDepth = 0;
   let flowSequence = "";
@@ -273,7 +274,7 @@ export function parseTriggers(content: string): WorkflowTriggers {
     }
 
     const cron = /^-\s*(?:cron|"cron"|'cron')\s*:\s*(.+)$/.exec(trimmed);
-    if (cron) {
+    if (cron && scheduleIndent !== null && indent >= scheduleIndent) {
       crons.push(cron[1].trim().replace(/^['"]|['"]$/g, ""));
       continue;
     }
@@ -304,8 +305,9 @@ export function parseTriggers(content: string): WorkflowTriggers {
     if (key) {
       const triggerName = key[1] ?? key[2] ?? key[3];
       if (triggerIndent === null) triggerIndent = indent;
-      if (indent === triggerIndent && !names.includes(triggerName)) {
-        names.push(triggerName);
+      if (indent === triggerIndent) {
+        scheduleIndent = triggerName === "schedule" ? indent : null;
+        if (!names.includes(triggerName)) names.push(triggerName);
       }
     }
   }
