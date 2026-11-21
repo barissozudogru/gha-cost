@@ -230,6 +230,30 @@ test("schedule crons are collected", () => {
   assert.deepEqual(parseTriggers(wf).crons, ["0 8 * * 1", "0 20 * * 5"]);
 });
 
+test("indentless schedule sequences are collected", () => {
+  const workflow = [
+    "on:",
+    "  schedule:",
+    "  - cron: '0 8 * * 1'",
+    "jobs:",
+  ].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
+});
+
+test("nested cron keys under non-schedule triggers are ignored", () => {
+  const workflow = [
+    "on:",
+    "  workflow_dispatch:",
+    "    inputs:",
+    "      examples:",
+    "        - cron: '0 8 * * 1'",
+    "jobs:",
+  ].join("\n");
+  assert.deepEqual(parseTriggers(workflow).crons, []);
+});
+
 test("quoted cron keys are collected", () => {
   const wf = ["on:", "  schedule:", "    - \"cron\": '0 8 * * 1'", "jobs:"].join("\n");
   const triggers = parseTriggers(wf);
