@@ -194,6 +194,8 @@ export function parseTriggers(content: string): WorkflowTriggers {
   // workflow cannot affect the next.
   let triggerIndent: number | null = null;
   let scheduleIndent: number | null = null;
+  let scheduleFlowSequence = "";
+  let scheduleFlowSequenceDepth = 0;
   let scheduleFlowMapping = "";
   let scheduleFlowMappingDepth = 0;
   let flowMapping = "";
@@ -278,6 +280,16 @@ export function parseTriggers(content: string): WorkflowTriggers {
       continue;
     }
 
+    if (scheduleFlowSequence) {
+      scheduleFlowSequence += ` ${trimmed}`;
+      scheduleFlowSequenceDepth += flowSequenceBalance(trimmed);
+      if (scheduleFlowSequenceDepth <= 0) {
+        crons.push(...parseFlowMappingCrons(`{ schedule: ${scheduleFlowSequence} }`));
+        scheduleFlowSequence = "";
+      }
+      continue;
+    }
+
     if (scheduleFlowMapping) {
       scheduleFlowMapping += ` ${trimmed}`;
       scheduleFlowMappingDepth += flowBraceBalance(trimmed);
@@ -337,7 +349,13 @@ export function parseTriggers(content: string): WorkflowTriggers {
         scheduleIndent = triggerName === "schedule" ? indent : null;
         if (!names.includes(triggerName)) names.push(triggerName);
         if (triggerName === "schedule" && key[4].trim().startsWith("[")) {
-          crons.push(...parseFlowMappingCrons(`{ schedule: ${key[4].trim()} }`));
+          const scheduleValue = key[4].trim();
+          if (scheduleValue.endsWith("]")) {
+            crons.push(...parseFlowMappingCrons(`{ schedule: ${scheduleValue} }`));
+          } else {
+            scheduleFlowSequence = scheduleValue;
+            scheduleFlowSequenceDepth = flowSequenceBalance(scheduleValue);
+          }
         }
       }
     }
