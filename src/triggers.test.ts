@@ -274,6 +274,19 @@ test("inline schedule sequences under the on mapping are collected", () => {
   assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
 });
 
+test("multiline schedule sequences under the on mapping are collected", () => {
+  const workflow = [
+    "on:",
+    "  schedule: [",
+    "    { cron: '0 8 * * 1' },",
+    "    { cron: '0 20 * * 5' }",
+    "  ]",
+    "jobs:",
+  ].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1", "0 20 * * 5"]);
+});
+
 test("indentless schedule sequences are collected", () => {
   const workflow = [
     "on:",
