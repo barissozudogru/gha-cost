@@ -218,6 +218,12 @@ test("quoted on: keys parse, since YAML reads bare on as boolean true", () => {
   assert.deepEqual(parseTriggers("'on': push\njobs:\n").names, ["push"]);
 });
 
+test("a literal true key is not treated as the on key", () => {
+  const triggers = parseTriggers("true: push\njobs:\n  build:\n");
+  assert.deepEqual(triggers.names, []);
+  assert.equal(triggers.hasPushLike, false);
+});
+
 test("quoted on keys allow whitespace before the colon", () => {
   assert.deepEqual(parseTriggers('"on" : push\njobs:\n').names, ["push"]);
 });
