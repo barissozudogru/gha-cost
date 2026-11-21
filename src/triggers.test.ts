@@ -166,6 +166,21 @@ test("flow-style trigger mappings collect nested schedule crons", () => {
   assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
 });
 
+test("multiline schedule flow mappings collect cron properties", () => {
+  const triggers = parseTriggers([
+    "on:",
+    "  schedule:",
+    "    - {",
+    "        name: weekly,",
+    "        cron: '0 8 * * 1'",
+    "      }",
+    "jobs:",
+    "  a:",
+  ].join("\n"));
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
+});
+
 test("flow-style trigger mappings ignore cron-like text outside schedule entries", () => {
   const triggers = parseTriggers(
     "on: { schedule: [{ cron: '0 8 * * 1' }], workflow_dispatch: { inputs: { note: { description: \"See cron: '0 0 * * *'\" } } } }\njobs:\n  a:\n"
@@ -228,6 +243,18 @@ test("trigger keys allow whitespace before the colon", () => {
 test("schedule crons are collected", () => {
   const wf = ["on:", "  schedule:", "    - cron: '0 8 * * 1'", "    - cron: \"0 20 * * 5\"", "jobs:"].join("\n");
   assert.deepEqual(parseTriggers(wf).crons, ["0 8 * * 1", "0 20 * * 5"]);
+});
+
+test("flow-mapping schedule items are collected", () => {
+  const workflow = [
+    "on:",
+    "  schedule:",
+    "    - { cron: '0 8 * * 1' }",
+    "jobs:",
+  ].join("\n");
+  const triggers = parseTriggers(workflow);
+  assert.deepEqual(triggers.crons, ["0 8 * * 1"]);
+  assert.equal(estimateRunsPerDay(triggers, 10).runsPerDay, 1 / 7);
 });
 
 test("inline schedule sequences under the on mapping are collected", () => {

@@ -143,7 +143,10 @@ function parseFlowMappingCrons(value: string): string[] {
     if (!schedule) continue;
 
     return splitEntries(schedule[1]).flatMap((item) => {
-      const cron = /^(?:\{\s*)?["']?cron["']?\s*:\s*(?:"([^"]*)"|'([^']*)'|([^,}]+))/i.exec(item.trim());
+      const properties = item.trim().startsWith("{") ? splitEntries(item.trim()) : [item];
+      const cron = properties
+        .map((property) => /^(?:["']?cron["']?)\s*:\s*(?:"([^"]*)"|'([^']*)'|([^,}]+))/i.exec(property.trim()))
+        .find(Boolean);
       return cron ? [(cron[1] ?? cron[2] ?? cron[3] ?? "").trim()].filter(Boolean) : [];
     });
   }
@@ -191,6 +194,8 @@ export function parseTriggers(content: string): WorkflowTriggers {
   // workflow cannot affect the next.
   let triggerIndent: number | null = null;
   let scheduleIndent: number | null = null;
+  let scheduleFlowMapping = "";
+  let scheduleFlowMappingDepth = 0;
   let flowMapping = "";
   let flowMappingDepth = 0;
   let flowSequence = "";
@@ -273,9 +278,32 @@ export function parseTriggers(content: string): WorkflowTriggers {
       continue;
     }
 
+    if (scheduleFlowMapping) {
+      scheduleFlowMapping += ` ${trimmed}`;
+      scheduleFlowMappingDepth += flowBraceBalance(trimmed);
+      if (scheduleFlowMappingDepth <= 0) {
+        crons.push(...parseFlowMappingCrons(`{ schedule: [${scheduleFlowMapping}] }`));
+        scheduleFlowMapping = "";
+      }
+      continue;
+    }
+
     const cron = /^-\s*(?:cron|"cron"|'cron')\s*:\s*(.+)$/.exec(trimmed);
     if (cron && scheduleIndent !== null && indent >= scheduleIndent) {
       crons.push(cron[1].trim().replace(/^['"]|['"]$/g, ""));
+      continue;
+    }
+
+    const flowCron = /^-\s*(\{.*\})$/.exec(trimmed);
+    if (flowCron && scheduleIndent !== null && indent >= scheduleIndent) {
+      crons.push(...parseFlowMappingCrons(`{ schedule: [${flowCron[1]}] }`));
+      continue;
+    }
+
+    const multilineFlowCron = /^-\s*(\{.*)$/.exec(trimmed);
+    if (multilineFlowCron && scheduleIndent !== null && indent >= scheduleIndent) {
+      scheduleFlowMapping = multilineFlowCron[1];
+      scheduleFlowMappingDepth = flowBraceBalance(scheduleFlowMapping);
       continue;
     }
 
