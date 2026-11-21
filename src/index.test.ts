@@ -27,6 +27,15 @@ describe("formatDuration", () => {
   });
 });
 
+describe("step duration heuristics", () => {
+  it("does not classify shell text as an Azure action", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("shell scan", undefined, "echo azure/login"),
+      { low: 0, high: 60 }
+    );
+  });
+});
+
 describe("CLI push frequency", () => {
   it("auto-discovers workflow files with uppercase YAML extensions", () => {
     const directory = mkdtempSync(join(tmpdir(), "gha-cost-uppercase-extension-"));
