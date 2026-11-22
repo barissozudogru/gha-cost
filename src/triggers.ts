@@ -410,6 +410,12 @@ function expandField(field: string, min: number, max: number): number[] {
       if (range) {
         lo = parseValue(range[1]) ?? -1;
         hi = parseValue(range[2]) ?? -1;
+        // Cron permits Sunday as either 0 or 7. When weekday names are used,
+        // a range ending in SUN must use 7 so ranges such as MON-SUN remain
+        // ascending instead of being rejected as 1-0.
+        if (min === 0 && max === 7 && range[2].toUpperCase() === "SUN" && lo > hi) {
+          hi = 7;
+        }
         if (lo < min || hi > max || lo > hi) return [];
       } else if (/^[A-Za-z0-9]+$/.test(body)) {
         lo = parseValue(body) ?? -1;
