@@ -184,7 +184,12 @@ export function detectsCaching(content: string): boolean {
       if (indent <= stepIndent && /^-\s/.test(line.trimStart())) break;
       if (indent <= stepIndent) break;
       const cache = /^\s+cache:\s*(\S+)/i.exec(line);
-      if (cache && stripOuterQuotes(cache[1]).toLowerCase() !== "false") return true;
+      if (cache) {
+        const cacheValue = stripOuterQuotes(cache[1]).trim().toLowerCase();
+        if (cacheValue !== "false" && cacheValue !== "null" && cacheValue !== "~" && cacheValue !== "") {
+          return true;
+        }
+      }
     }
   }
   return false;

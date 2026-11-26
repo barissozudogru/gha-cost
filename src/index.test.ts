@@ -2397,6 +2397,17 @@ jobs:
     assert.equal(detectsCachingForTest(wf), false);
   });
 
+  it("does not treat empty or null setup cache values as enabled", () => {
+    for (const value of ['""', "null", "~"]) {
+      const wf = [
+        "jobs:", "  a:", "    steps:",
+        "      - uses: actions/setup-node@v4",
+        "        with:", `          cache: ${value}`,
+      ].join("\n");
+      assert.equal(detectsCachingForTest(wf), false, `cache: ${value}`);
+    }
+  });
+
   it("ignores cache declarations in YAML comments", () => {
     const wf = [
       "jobs:", "  a:", "    steps:",
