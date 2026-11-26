@@ -599,7 +599,7 @@ export function estimateRunsPerDay(
     : 0;
 
   if (triggers.hasPushLike) {
-    total += validPushesPerDay;
+    total = validPushesPerDay;
     parts.push(`${validPushesPerDay}/day from push`);
   }
 
@@ -608,7 +608,10 @@ export function estimateRunsPerDay(
       (sum, c) => sum + cronRunsPerDay(c),
       0
     );
-    total += scheduled;
+    // Keep the exported frequency a safe integer when a valid maximum push
+    // rate is combined with a schedule. Saturating here avoids silently
+    // returning an imprecise number from otherwise validated input.
+    total = Math.min(Number.MAX_SAFE_INTEGER, total + scheduled);
     parts.push(`${formatRate(scheduled)} from schedule`);
   }
 

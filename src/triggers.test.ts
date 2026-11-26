@@ -365,6 +365,19 @@ test("unsafe push rates do not produce imprecise workflow frequency", () => {
   assert.equal(estimate.basis, "no known cadence");
 });
 
+test("a scheduled workflow cannot overflow a safe maximum push rate", () => {
+  const triggers = parseTriggers([
+    "on:",
+    "  push:",
+    "  schedule:",
+    "    - cron: '0 0 * * *'",
+    "jobs:",
+  ].join("\n"));
+  const estimate = estimateRunsPerDay(triggers, Number.MAX_SAFE_INTEGER);
+  assert.equal(estimate.runsPerDay, Number.MAX_SAFE_INTEGER);
+  assert.equal(Number.isSafeInteger(estimate.runsPerDay), true);
+});
+
 test("fractional push rates do not produce fractional trigger counts", () => {
   const pushed = parseTriggers("on: push\njobs:\n  a:\n");
   const estimate = estimateRunsPerDay(pushed, 1.5);
