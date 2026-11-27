@@ -1908,6 +1908,13 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("does not classify a different action owner containing aws-actions", () => {
+    assert.deepEqual(
+      estimateStepDurationForTest("step", "evil/aws-actions/fake@v1"),
+      { low: 0, high: 60 }
+    );
+  });
+
   it("only estimates Google Cloud actions from the uses field", () => {
     assert.deepEqual(
       estimateStepDurationForTest(
