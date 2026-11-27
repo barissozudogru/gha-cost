@@ -256,7 +256,17 @@ function calculateJobCost(
 ): number {
   const billedSeconds = roundUpToMinute(seconds);
   const minutes = billedSeconds / 60;
-  return minutes * rateFor(runner, selfHostedRate);
+  return safeCostProduct(minutes, rateFor(runner, selfHostedRate));
+}
+
+function safeCostProduct(left: number, right: number): number {
+  const product = left * right;
+  return Number.isFinite(product) ? product : Number.MAX_VALUE;
+}
+
+function safeCostSum(left: number, right: number): number {
+  const sum = left + right;
+  return Number.isFinite(sum) ? sum : Number.MAX_VALUE;
 }
 
 /**
@@ -415,12 +425,12 @@ function calculateMatrixJobCost(
     // Every combination bills its own rounded minutes on its own runner, the
     // same path a single-runner job takes.
     return matrixRunnerTypes.reduce(
-      (sum, t) => sum + calculateJobCost(secondsPerCombination, t, selfHostedRate),
+      (sum, t) => safeCostSum(sum, calculateJobCost(secondsPerCombination, t, selfHostedRate)),
       0
     );
   }
-  return (
-    calculateJobCost(secondsPerCombination, runner, selfHostedRate) *
+  return safeCostProduct(
+    calculateJobCost(secondsPerCombination, runner, selfHostedRate),
     matrixCombinations
   );
 }
@@ -1475,16 +1485,16 @@ export function estimateWorkflow(
     (sum, j) => sum + j.estimatedSecondsLowPerMatrix * j.matrixCombinations, 0);
   const totalSecondsHigh = jobEstimates.reduce(
     (sum, j) => sum + j.estimatedSecondsHighPerMatrix * j.matrixCombinations, 0);
-  const costPerRun = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsd, 0);
-  const costPerRunLow = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsdLow, 0);
-  const costPerRunHigh = jobEstimates.reduce((sum, j) => sum + j.estimatedCostUsdHigh, 0);
+  const costPerRun = jobEstimates.reduce((sum, j) => safeCostSum(sum, j.estimatedCostUsd), 0);
+  const costPerRunLow = jobEstimates.reduce((sum, j) => safeCostSum(sum, j.estimatedCostUsdLow), 0);
+  const costPerRunHigh = jobEstimates.reduce((sum, j) => safeCostSum(sum, j.estimatedCostUsdHigh), 0);
   // Cost per run is only half the picture. How often the workflow actually
   // fires comes from its own on: block, so a weekly cron is no longer billed as
   // if it ran with every push.
   const triggers = parseTriggers(content);
   const frequency = estimateRunsPerDay(triggers, pushesPerDay);
-  const costPerDay = costPerRun * frequency.runsPerDay;
-  const costPerMonth = costPerDay * 30.44;
+  const costPerDay = safeCostProduct(costPerRun, frequency.runsPerDay);
+  const costPerMonth = safeCostProduct(costPerDay, 30.44);
 
   const hints = generateHints(jobEstimates);
 

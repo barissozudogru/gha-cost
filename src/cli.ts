@@ -54,6 +54,16 @@ function formatCost(usd: number): string {
   return `$${usd.toFixed(2)}`;
 }
 
+function safeCostProduct(left: number, right: number): number {
+  const product = left * right;
+  return Number.isFinite(product) ? product : Number.MAX_VALUE;
+}
+
+function safeCostSum(left: number, right: number): number {
+  const sum = left + right;
+  return Number.isFinite(sum) ? sum : Number.MAX_VALUE;
+}
+
 function runnerColor(runner: string): string {
   switch (runner) {
     case "ubuntu":
@@ -157,14 +167,14 @@ function printWorkflowReport(estimate: WorkflowEstimate, pushesPerDay: number): 
       `  Cost per month:        ${dim("not estimated")}`
     );
   } else {
-    const dayLow = lowCost * estimate.runsPerDay;
-    const dayHigh = highCost * estimate.runsPerDay;
+    const dayLow = safeCostProduct(lowCost, estimate.runsPerDay);
+    const dayHigh = safeCostProduct(highCost, estimate.runsPerDay);
     console.log(
       `  Cost per day           ${colorize(formatCost(dayLow), YELLOW)} to ${colorize(formatCost(dayHigh), YELLOW)}` +
       `  ${dim(`(${estimate.frequencyBasis})`)}`
     );
     console.log(
-      `  Cost per month:        ${colorize(formatCost(dayLow * 30.44), RED)} to ${colorize(formatCost(dayHigh * 30.44), RED)}` +
+      `  Cost per month:        ${colorize(formatCost(safeCostProduct(dayLow, 30.44)), RED)} to ${colorize(formatCost(safeCostProduct(dayHigh, 30.44)), RED)}` +
       `  ${dim("(30.44 days)")}`
     );
   }
@@ -369,12 +379,12 @@ async function main(): Promise<void> {
   if (results.length > 1) {
     // Ranges here too, so the aggregate speaks the same language as the
     // per-workflow reports rather than reintroducing a point estimate.
-    const runLow = results.reduce((s, r) => s + r.totalEstimatedCostPerRunLow, 0);
-    const runHigh = results.reduce((s, r) => s + r.totalEstimatedCostPerRunHigh, 0);
+    const runLow = results.reduce((s, r) => safeCostSum(s, r.totalEstimatedCostPerRunLow), 0);
+    const runHigh = results.reduce((s, r) => safeCostSum(s, r.totalEstimatedCostPerRunHigh), 0);
     const dayLow = results.reduce(
-      (s, r) => s + r.totalEstimatedCostPerRunLow * r.runsPerDay, 0);
+      (s, r) => safeCostSum(s, safeCostProduct(r.totalEstimatedCostPerRunLow, r.runsPerDay)), 0);
     const dayHigh = results.reduce(
-      (s, r) => s + r.totalEstimatedCostPerRunHigh * r.runsPerDay, 0);
+      (s, r) => safeCostSum(s, safeCostProduct(r.totalEstimatedCostPerRunHigh, r.runsPerDay)), 0);
 
     const separator = colorize("=".repeat(60), DIM);
     console.log(separator);
@@ -382,7 +392,7 @@ async function main(): Promise<void> {
     console.log(bold(`Aggregate (${results.length} workflows)`));
     console.log(`  Cost per run:   ${colorize(formatCost(runLow), GREEN)} to ${colorize(formatCost(runHigh), GREEN)}`);
     console.log(`  Cost per day:   ${colorize(formatCost(dayLow), YELLOW)} to ${colorize(formatCost(dayHigh), YELLOW)}`);
-    console.log(`  Cost per month: ${colorize(formatCost(dayLow * 30.44), RED)} to ${colorize(formatCost(dayHigh * 30.44), RED)}`);
+    console.log(`  Cost per month: ${colorize(formatCost(safeCostProduct(dayLow, 30.44)), RED)} to ${colorize(formatCost(safeCostProduct(dayHigh, 30.44)), RED)}`);
     if (unscheduled > 0) {
       console.log(
         dim(
