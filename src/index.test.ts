@@ -596,6 +596,62 @@ jobs:
     assert.equal(result.stdout, "");
   });
 
+  it("keeps finite costs when a valid rate would overflow arithmetic", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-self-hosted-overflow-${Date.now()}.yml`);
+    writeFileSync(tmpFile, [
+      "name: Overflow Rate",
+      "on: push",
+      "jobs:",
+      "  build:",
+      "    runs-on: self-hosted",
+      "    steps:",
+      "      - run: npm test",
+    ].join("\n"), "utf-8");
+
+    try {
+      const estimate = estimateWorkflow(tmpFile, 1, Number.MAX_VALUE);
+      assert.equal(Number.isFinite(estimate.jobs[0]?.estimatedCostUsd), true);
+      assert.equal(Number.isFinite(estimate.totalEstimatedCostPerRunHigh), true);
+      assert.equal(Number.isFinite(estimate.totalEstimatedCostPerDay), true);
+      assert.equal(Number.isFinite(estimate.totalEstimatedCostPerMonth), true);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("keeps CLI daily, monthly, and aggregate costs saturated", () => {
+    const directory = mkdtempSync(join(tmpdir(), "gha-cost-cli-overflow-"));
+    const workflowDirectory = join(directory, ".github", "workflows");
+    mkdirSync(workflowDirectory, { recursive: true });
+    const yaml = [
+      "name: Overflow Rate",
+      "on: push",
+      "jobs:",
+      "  build:",
+      "    runs-on: self-hosted",
+      "    steps:",
+      "      - run: npm test",
+    ].join("\n");
+    writeFileSync(join(workflowDirectory, "one.yml"), yaml, "utf-8");
+    writeFileSync(join(workflowDirectory, "two.yml"), yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), "--self-hosted-rate", String(Number.MAX_VALUE)],
+        { cwd: directory, encoding: "utf-8" }
+      );
+      const saturated = "$1.7976931348623157e+308";
+      assert.equal(result.status, 0, result.stderr);
+      assert.equal(result.stdout.includes("$Infinity"), false);
+      assert.equal(result.stdout.includes(`Cost per day           ${saturated} to ${saturated}`), true);
+      assert.equal(result.stdout.includes(`Cost per month: ${saturated} to ${saturated}`), true);
+      assert.equal(result.stdout.includes(`Cost per run:   ${saturated} to ${saturated}`), true);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it("rejects a self-hosted rate that overflows Number", () => {
     const result = spawnSync(
       process.execPath,
