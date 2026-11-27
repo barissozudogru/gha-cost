@@ -234,10 +234,14 @@ function parseArgs(argv: string[]): CliOptions & { help: boolean; version: boole
       }
       i++;
       const val = Number(raw);
+      if (val === Infinity || val === -Infinity ||
+          (Number.isNaN(val) && /^(?:[+-]?Infinity|NaN)$/i.test(raw.trim()))) {
+        throw new Error(`${arg} requires a finite number`);
+      }
       if (Number.isFinite(val) && val < 0) {
         throw new Error("--self-hosted-rate must be non-negative");
       }
-      if (raw.trim() !== "" && Number.isFinite(val)) selfHostedRate = val;
+      if (raw.trim() !== "") selfHostedRate = val;
     } else if (arg.startsWith("-")) {
       throw new Error(`Unknown option: ${arg}`);
     } else if (!arg.startsWith("-")) {

@@ -584,6 +584,30 @@ jobs:
     }
   });
 
+  it("rejects a non-finite self-hosted rate", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "--file", "README.md", "--self-hosted-rate", "Infinity"],
+      { encoding: "utf-8" }
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--self-hosted-rate requires a finite number/);
+    assert.equal(result.stdout, "");
+  });
+
+  it("rejects a self-hosted rate that overflows Number", () => {
+    const result = spawnSync(
+      process.execPath,
+      [join(process.cwd(), "dist", "cli.js"), "--file", "README.md", "--self-hosted-rate", "1e309"],
+      { encoding: "utf-8" }
+    );
+
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /--self-hosted-rate requires a finite number/);
+    assert.equal(result.stdout, "");
+  });
+
   it("detects self-hosted runner even if linux is in the label array", () => {
     const tmpFile = join(tmpdir(), `test-workflow-sh-linux-${Date.now()}.yml`);
     const yaml = `
