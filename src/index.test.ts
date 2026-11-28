@@ -2042,6 +2042,30 @@ describe("step duration heuristics", () => {
     );
   });
 
+  it("does not classify a valid foreign action owner as a Google Cloud action", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-foreign-google-action-${Date.now()}.yml`);
+    const yaml = `
+name: Foreign Google Action Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Foreign action
+        uses: evil-google-github-actions/fake@v1
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const step = estimateWorkflow(tmpFile, 1).jobs[0]?.steps[0];
+      assert.equal(step?.uses, "evil-google-github-actions/fake@v1");
+      assert.equal(step?.estimatedSecondsLow, 0);
+      assert.equal(step?.estimatedSecondsHigh, 60);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("does not treat a similarly named action as actions/checkout", () => {
     assert.deepEqual(
       estimateStepDurationForTest("Checkout", "vendor/actions/checkout-extra@v1", undefined),
