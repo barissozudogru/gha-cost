@@ -236,6 +236,62 @@ jobs:
     }
   });
 
+  it("accepts exponent notation for an integer push rate", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-exponent-pushes-${Date.now()}.yml`);
+    const yaml = `
+name: Exponent Pushes Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      const result = spawnSync(
+        process.execPath,
+        [join(process.cwd(), "dist", "cli.js"), "--file", tmpFile, "--pushes", "1e2", "--json"],
+        { encoding: "utf-8" }
+      );
+      assert.equal(result.status, 0, result.stderr);
+      const estimates = JSON.parse(result.stdout) as Array<{ runsPerDay: number }>;
+      assert.equal(estimates[0]?.runsPerDay, 100);
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
+  it("ignores non-canonical negative zero and decimal push rates", () => {
+    const tmpFile = join(tmpdir(), `test-workflow-non-integer-pushes-${Date.now()}.yml`);
+    const yaml = `
+name: Non-Integer Pushes Test
+on: push
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo hello
+`;
+    writeFileSync(tmpFile, yaml, "utf-8");
+
+    try {
+      for (const raw of ["-00", "-0.0", "-0e2", "1.5"]) {
+        const result = spawnSync(
+          process.execPath,
+          [join(process.cwd(), "dist", "cli.js"), "--file", tmpFile, "--pushes", raw, "--json"],
+          { encoding: "utf-8" }
+        );
+        assert.equal(result.status, 0, `${raw}: ${result.stderr}`);
+        const estimates = JSON.parse(result.stdout) as Array<{ runsPerDay: number }>;
+        assert.equal(estimates[0]?.runsPerDay, 10, raw);
+      }
+    } finally {
+      unlinkSync(tmpFile);
+    }
+  });
+
   it("ignores a push rate with trailing non-numeric input", () => {
     const tmpFile = join(tmpdir(), `test-workflow-invalid-pushes-${Date.now()}.yml`);
     const yaml = `
